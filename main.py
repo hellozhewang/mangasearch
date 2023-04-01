@@ -4,10 +4,7 @@ import os.path
 import time
 import random
 from collections import defaultdict
-<<<<<<< HEAD
-=======
 from datetime import datetime
->>>>>>> a246b05 (test)
 
 
 def get_file_age_seconds(path):
@@ -112,7 +109,8 @@ def get_series(token, series_id, cache):
         print(f'Unable to get series {series_id} \n {resp}')
         return None
     cache[series_id] = json
-    cache[series_id]['cache_timestamp'] = time.time() + random.randint(1800, 3600 * 24 * 5)
+    cache[series_id]['cache_timestamp'] = time.time(
+    ) + random.randint(1800, 3600 * 24 * 5)
     return cache[series_id]
 
 
@@ -169,7 +167,7 @@ def filter_record(token, results):
         series = get_series(token, id, cache)
         if series:
             categories = {category['category']: category['votes_plus']
-                        for category in series['categories']}
+                          for category in series['categories']}
 
             if 'Fast Romance' in categories:
                 mod = .05 + .02 * categories['Fast Romance']
@@ -192,7 +190,7 @@ def filter_record(token, results):
                 mod = min(mod, .1)
                 z_rating += mod
                 debug['Couple'] = mod
-            
+
             record = series
         else:
             record['status'] = ''
@@ -207,7 +205,7 @@ def filter_record(token, results):
     records = sorted(records, key=lambda x: x['z_rating'], reverse=True)
     return records[0:min(250, len(results))]
 
-        
+
 def write(records):
     print(f'Rendering: {len(records)}')
     # Get the keys from the dictionary to use as column headers
@@ -220,7 +218,8 @@ def write(records):
         f.write(
             'th, td {\npadding: 5px;\ntext-align: left;\nborder-style: dotted;\n}\n')
         f.write('</style>\n</head>\n<body>\n')
-        f.write(f'<p> Last updated: {datetime.now().strftime("%m/%d/%Y %H:%M:%S")}</p>')
+        f.write(
+            f'<p> Last updated: {datetime.now().strftime("%m/%d/%Y %H:%M:%S")}</p>')
         # Generate the table
         f.write('<table>\n<tr>')
         f.write('</tr>\n')
