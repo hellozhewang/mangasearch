@@ -4,6 +4,10 @@ import os.path
 import time
 import random
 from collections import defaultdict
+<<<<<<< HEAD
+=======
+from datetime import datetime
+>>>>>>> a246b05 (test)
 
 
 def get_file_age_seconds(path):
@@ -204,13 +208,10 @@ def filter_record(token, results):
     return records[0:min(250, len(results))]
 
         
-
-
-
 def write(records):
     print(f'Rendering: {len(records)}')
     # Get the keys from the dictionary to use as column headers
-    file = '/Users/zzwang/Documents/MangaScript/out.html'
+    file = '/Users/zzwang/Documents/MangaScript/index.html'
     with open(file, 'w') as f:
         # Write the beginning of the HTML file
         f.write('<html>\n<head>\n<style>\n')
@@ -219,7 +220,7 @@ def write(records):
         f.write(
             'th, td {\npadding: 5px;\ntext-align: left;\nborder-style: dotted;\n}\n')
         f.write('</style>\n</head>\n<body>\n')
-
+        f.write(f'<p> Last updated: {datetime.now().strftime("%m/%d/%Y %H:%M:%S")}</p>')
         # Generate the table
         f.write('<table>\n<tr>')
         f.write('</tr>\n')
