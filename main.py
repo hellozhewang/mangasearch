@@ -5,6 +5,7 @@ import time
 import random
 from collections import defaultdict
 from datetime import datetime
+import sys
 
 
 def get_file_age_seconds(path):
@@ -35,7 +36,7 @@ def get_bearer_token():
         raise Exception(f'Error getting token: {response}')
 
 
-def load_cache(cache_path, time_limit_secs):
+def load_cache(cache_path, time_limit_secs = sys.maxsize):
     if os.path.isfile(cache_path) and get_file_age_seconds(cache_path) < time_limit_secs:
         with open(cache_path, 'rb') as handle:
             results = pickle.load(handle)
@@ -121,7 +122,7 @@ def filter_record(token, results):
         return .004*votes + .0006*pow(votes, 2) - .0000128*pow(votes, 3) + .000000064*pow(votes, 4)
 
     cache_path = '/Users/zzwang/Documents/MangaScript/series_cache.pickle'
-    cache = load_cache(cache_path, 3600 * 24 * 9999999)
+    cache = load_cache(cache_path)
     if not cache:
         cache = {}
     print(f'Series cache len: {len(cache)}')
@@ -192,7 +193,7 @@ def filter_record(token, results):
                 debug['Couple'] = mod
 
             if series['completed'] or 'Complete' in str(series['status']):
-                mod = .20
+                mod = .15
                 z_rating += mod
                 debug['Completed'] = mod
 
@@ -239,10 +240,15 @@ def write(records):
                 f'<td width=15%>{ ",".join(v["genre"] for v in row["genres"]) }</td>')
             f.write(f'<td width=15%>{ row["status"] }</td>')
             f.write(f'<td>{ row["rating_votes"] }</td>')
-            f.write(f'<td><a href="{row["url"]}">link</a></td>')
+            f.write(
+                f'<td><a target="_blank" href="{row["url"]}">link</a></td>')
             f.write(f'<td>{ row["bayesian_rating"] }</td>')
             f.write(f'<td><b>{ row["z_rating"] }</b></td>')
             f.write(f'<td width=10%><b>{ row["debug"] }</b></td>')
+            f.write(
+                f'<td><a target="_blank" href="{"https://www.google.com/search?q=" + "read+" + row["title"].replace(" ", "+")}">google</a><br/>'
+                f'<a target="_blank" href="{"https://duckduckgo.com/?q=" + "read+" + row["title"].replace(" ", "+")}">duck</a><br/>'
+                f'<a target="_blank" href="{"https://www.bing.com/search?q=" + "read+" + row["title"].replace(" ", "+")}">bing</a> </td>')
             f.write('</tr>\n')
             i += 1
         f.write('</table>\n')
