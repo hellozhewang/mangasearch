@@ -218,7 +218,7 @@ def write(records):
     file = '/Users/zzwang/Documents/MangaScript/index.html'
     with open(file, 'w') as f:
         # Write the beginning of the HTML file
-        f.write('<html>\n<head>\n<style>\n')
+        f.write('<html>\n<head><link rel="icon" href="https://pics.freeicons.io/uploads/icons/png/17101267261557740324-512.png" >\n<style>\n')
         f.write(
             'table, th, td {\nborder: 1px solid black;\nborder-collapse: collapse;\n}\n')
         f.write(
