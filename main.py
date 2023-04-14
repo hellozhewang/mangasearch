@@ -192,7 +192,7 @@ def filter_record(token, results):
                 z_rating += mod
                 debug['Couple'] = mod
 
-            if series['completed'] or 'Complete' in str(series['status']):
+            if series['completed'] or ('Complete' in str(series['status']) and 'Ongoing' not in str(series['status'])):
                 mod = .15
                 z_rating += mod
                 debug['Completed'] = mod
