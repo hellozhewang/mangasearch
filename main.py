@@ -111,7 +111,7 @@ def get_series(token, series_id, cache):
         return None
     cache[series_id] = json
     cache[series_id]['cache_timestamp'] = time.time(
-    ) + random.randint(1800, 3600 * 24 * 5)
+    ) + random.randint(3600 * 24 * 5, 3600 * 24 * 15)
     return cache[series_id]
 
 
