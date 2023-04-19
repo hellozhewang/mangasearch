@@ -119,7 +119,7 @@ def filter_record(token, results):
     records = []
 
     def calc_vote_mod(votes):
-        return .004*votes + .0006*pow(votes, 2) - .0000128*pow(votes, 3) + .000000064*pow(votes, 4)
+        return -.004*votes + .00068*pow(votes, 2) - .0000128*pow(votes, 3) + .000000064*pow(votes, 4)
 
     cache_path = '/Users/zzwang/Documents/MangaScript/series_cache.pickle'
     cache = load_cache(cache_path)
@@ -152,18 +152,22 @@ def filter_record(token, results):
             debug['Votes'] = mod
 
         # adjust for genres
+        SEINEN = .25
+        SHOUNEN = .15
+        JOSEI = .10
+        ADULT = .10
         if 'Seinen' in genres:
-            z_rating += .35
-            debug['Seinen'] = .35
+            z_rating += SEINEN
+            debug['Seinen'] = SEINEN
         if 'Shounen' in genres:
-            z_rating += .25
-            debug['Shounen'] = .25
+            z_rating += SHOUNEN
+            debug['Shounen'] = SHOUNEN
         if 'Josei' in genres:
-            z_rating += .10
-            debug['Josei'] = .10
+            z_rating += JOSEI
+            debug['Josei'] = JOSEI
         if 'Adult' in genres:
-            z_rating += .10
-            debug['Adult'] = .10
+            z_rating += ADULT
+            debug['Adult'] = ADULT
 
         series = get_series(token, id, cache)
         if series:
