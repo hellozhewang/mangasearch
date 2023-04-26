@@ -52,7 +52,7 @@ def save_cache(cache_path, data):
 
 def query(token, genres, exclude, limit):
     cache_path = '/Users/zzwang/Documents/MangaScript/cache.pickle'
-    results = load_cache(cache_path, 3600)
+    results = load_cache(cache_path, 3600 * 24)
     if results:
         return results
     else:
@@ -97,23 +97,38 @@ def query(token, genres, exclude, limit):
     return results
 
 
+def get_rating(token, series_id, cache):
+    if series_id in cache and (time.time() - cache[series_id]['cache_timestamp']) <= 3600 * 24 * 10:
+        return cache[series_id]
+    url = f"https://api.mangaupdates.com/v1/series/{series_id}/ratingrainbow"
+    resp = get(token, url)
+    if resp:
+        cache[series_id] = resp
+        cache[series_id]['cache_timestamp'] = time.time(
+        ) + random.randint(3600 * 24 * 15, 3600 * 24 * 30)
+    return resp
+
 def get_series(token, series_id, cache):
     if series_id in cache and (time.time() - cache[series_id]['cache_timestamp']) <= 3600 * 24 * 10:
         return cache[series_id]
     url = f"https://api.mangaupdates.com/v1/series/{series_id}"
+    resp = get(token, url)
+    if resp:
+        cache[series_id] = resp
+        cache[series_id]['cache_timestamp'] = time.time(
+        ) + random.randint(3600 * 24 * 5, 3600 * 24 * 15)
+    return resp
+
+def get(token, url):
     headers = {'Authorization': 'Bearer ' + token}
     try:
         resp = requests.get(url, headers=headers)
         json = resp.json()
-        time.sleep(.5)
+        time.sleep(.75)
     except:
-        print(f'Unable to get series {series_id} \n {resp}')
+        print(f'Unable to get {url} \n {resp}')
         return None
-    cache[series_id] = json
-    cache[series_id]['cache_timestamp'] = time.time(
-    ) + random.randint(3600 * 24 * 5, 3600 * 24 * 15)
-    return cache[series_id]
-
+    return json
 
 def filter_record(token, results):
     records = []
@@ -121,11 +136,18 @@ def filter_record(token, results):
     def calc_vote_mod(votes):
         return -.004*votes + .00068*pow(votes, 2) - .0000128*pow(votes, 3) + .000000064*pow(votes, 4)
 
-    cache_path = '/Users/zzwang/Documents/MangaScript/series_cache.pickle'
-    cache = load_cache(cache_path)
-    if not cache:
-        cache = {}
-    print(f'Series cache len: {len(cache)}')
+    series_cache_path = '/Users/zzwang/Documents/MangaScript/series_cache.pickle'
+    series_cache = load_cache(series_cache_path)
+    if not series_cache:
+        series_cache = {}
+    print(f'Series cache len: {len(series_cache)}')
+
+    rating_cache_path = '/Users/zzwang/Documents/MangaScript/rating_cache.pickle'
+    rating_cache = load_cache(rating_cache_path)
+    if not rating_cache:
+        rating_cache = {}
+    print(f'Rating cache len: {len(rating_cache)}')
+
     i = 0
     for record in results:
         i += 1
@@ -135,21 +157,27 @@ def filter_record(token, results):
         genres = [v["genre"] for v in record["genres"]]
         z_rating = record['bayesian_rating']
         votes = record['rating_votes']
-        # adjust for old
-        year_limit = 2014
-        if year <= year_limit:
-            mod = (year_limit - year) / 12
-            min(mod, 1.5)
-            z_rating -= mod
-            debug['Year'] = -mod
+        rating = get_rating(token, id, rating_cache)
+        avg_rating = rating['average_rating'] if rating and 'average_rating' in rating else 0
+        record['average_rating'] = avg_rating
 
-        if votes <= 100:
+        if votes <= 28:
             mod = calc_vote_mod(votes)
             if year <= year_limit:
                 mod -= (year_limit - year) / 12
             mod = max(0, mod)
             z_rating += mod
             debug['Votes'] = mod
+        else:
+            z_rating = max(avg_rating, z_rating)
+
+        # adjust for old
+        year_limit = 2015
+        if year <= year_limit:
+            mod = (year_limit - year) / 12
+            mod = min(mod, 1.5)
+            z_rating -= mod
+            debug['Year'] = -mod
 
         # adjust for genres
         SEINEN = .25
@@ -169,7 +197,7 @@ def filter_record(token, results):
             z_rating += ADULT
             debug['Adult'] = ADULT
 
-        series = get_series(token, id, cache)
+        series = get_series(token, id, series_cache)
         if series:
             categories = {category['category']: category['votes_plus']
                           for category in series['categories']}
@@ -210,8 +238,12 @@ def filter_record(token, results):
         records.append(record)
         if i % 10 == 0:
             print(f'Record counter: {i}')
+        if i % 500 == 0:
+            save_cache(series_cache_path, series_cache)
+            save_cache(rating_cache_path, rating_cache)
 
-    save_cache(cache_path, cache)
+    save_cache(series_cache_path, series_cache)
+    save_cache(rating_cache_path, rating_cache)
     records = sorted(records, key=lambda x: x['z_rating'], reverse=True)
     return records[0:min(250, len(results))]
 
@@ -247,6 +279,7 @@ def write(records):
             f.write(
                 f'<td><a target="_blank" href="{row["url"]}">link</a></td>')
             f.write(f'<td>{ row["bayesian_rating"] }</td>')
+            f.write(f'<td>{ row["average_rating"] }</td>')
             f.write(f'<td><b>{ row["z_rating"] }</b></td>')
             f.write(f'<td width=10%><b>{ row["debug"] }</b></td>')
             f.write(
