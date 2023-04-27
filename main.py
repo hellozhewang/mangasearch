@@ -163,8 +163,6 @@ def filter_record(token, results):
 
         if votes <= 28:
             mod = calc_vote_mod(votes)
-            if year <= year_limit:
-                mod -= (year_limit - year) / 12
             mod = max(0, mod)
             z_rating += mod
             debug['Votes'] = mod
