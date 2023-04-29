@@ -243,7 +243,7 @@ def filter_record(token, results):
     save_cache(series_cache_path, series_cache)
     save_cache(rating_cache_path, rating_cache)
     records = sorted(records, key=lambda x: x['z_rating'], reverse=True)
-    return records[0:min(250, len(results))]
+    return records[0:min(300, len(results))]
 
 
 def write(records):
