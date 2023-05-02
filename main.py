@@ -52,7 +52,7 @@ def save_cache(cache_path, data):
 
 def query(token, genres, exclude, limit):
     cache_path = '/Users/zzwang/Documents/MangaScript/cache.pickle'
-    results = load_cache(cache_path, 3600 * 24)
+    results = load_cache(cache_path, 3600 * 4)
     if results:
         return results
     else:
