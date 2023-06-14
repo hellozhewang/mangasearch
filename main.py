@@ -36,7 +36,7 @@ def get_bearer_token():
         raise Exception(f'Error getting token: {response}')
 
 
-def load_cache(cache_path, time_limit_secs = sys.maxsize):
+def load_cache(cache_path, time_limit_secs=sys.maxsize):
     if os.path.isfile(cache_path) and get_file_age_seconds(cache_path) < time_limit_secs:
         with open(cache_path, 'rb') as handle:
             results = pickle.load(handle)
@@ -108,6 +108,7 @@ def get_rating(token, series_id, cache):
         ) + random.randint(3600 * 24 * 15, 3600 * 24 * 30)
     return resp
 
+
 def get_series(token, series_id, cache):
     if series_id in cache and (time.time() - cache[series_id]['cache_timestamp']) <= 3600 * 24 * 10:
         return cache[series_id]
@@ -119,8 +120,10 @@ def get_series(token, series_id, cache):
         ) + random.randint(3600 * 24 * 5, 3600 * 24 * 15)
     return resp
 
+
 def get(token, url):
     headers = {'Authorization': 'Bearer ' + token}
+    resp = ''
     try:
         resp = requests.get(url, headers=headers)
         json = resp.json()
@@ -129,6 +132,7 @@ def get(token, url):
         print(f'Unable to get {url} \n {resp}')
         return None
     return json
+
 
 def filter_record(token, results):
     records = []
@@ -236,7 +240,7 @@ def filter_record(token, results):
         records.append(record)
         if i % 10 == 0:
             print(f'Record counter: {i}')
-        if i % 500 == 0:
+        if i % 250 == 0:
             save_cache(series_cache_path, series_cache)
             save_cache(rating_cache_path, rating_cache)
 
