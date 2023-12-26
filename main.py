@@ -186,6 +186,7 @@ def filter_record(token, results):
         SHOUNEN = .15
         JOSEI = .10
         ADULT = .10
+        SHOUJO = -.10
         if 'Seinen' in genres:
             z_rating += SEINEN
             debug['Seinen'] = SEINEN
@@ -198,6 +199,9 @@ def filter_record(token, results):
         if 'Adult' in genres:
             z_rating += ADULT
             debug['Adult'] = ADULT
+        if 'Shoujo' in genres:
+            z_rating += SHOUJO
+            debug['Shoujo'] = SHOUJO
 
         series = get_series(token, id, series_cache)
         if series:
