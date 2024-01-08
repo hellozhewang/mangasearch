@@ -52,7 +52,7 @@ def save_cache(cache_path, data):
 
 def query(token, genres, exclude, limit):
     cache_path = '/Users/zzwang/Documents/MangaScript/cache.pickle'
-    results = load_cache(cache_path, 3600 * 4)
+    results = load_cache(cache_path, 1800)
     if results:
         return results
     else:
@@ -174,9 +174,9 @@ def filter_record(token, results):
             z_rating = max(avg_rating, z_rating)
 
         # adjust for old
-        year_limit = 2015
+        year_limit = 2017
         if year <= year_limit:
-            mod = (year_limit - year) / 12
+            mod = (year_limit - year) / 8
             mod = min(mod, 1.5)
             z_rating -= mod
             debug['Year'] = -mod
@@ -186,7 +186,7 @@ def filter_record(token, results):
         SHOUNEN = .15
         JOSEI = .10
         ADULT = .10
-        SHOUJO = -.10
+        SHOUJO = 0
         if 'Seinen' in genres:
             z_rating += SEINEN
             debug['Seinen'] = SEINEN
@@ -231,7 +231,7 @@ def filter_record(token, results):
                 debug['Couple'] = mod
 
             if series['completed'] or ('Complete' in str(series['status']) and 'Ongoing' not in str(series['status'])):
-                mod = .15
+                mod = .25
                 z_rating += mod
                 debug['Completed'] = mod
 
