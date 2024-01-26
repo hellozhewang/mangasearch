@@ -182,8 +182,8 @@ def filter_record(token, results):
             debug['Year'] = -mod
 
         # adjust for genres
-        SEINEN = .25
-        SHOUNEN = .15
+        SEINEN = .15
+        SHOUNEN = .05
         JOSEI = .10
         ADULT = .10
         SHOUJO = 0
