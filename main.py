@@ -22,6 +22,7 @@ def get_file_age_seconds(path):
 
 
 def get_bearer_token():
+    # user_id = 54455593497
     url = "https://api.mangaupdates.com/v1/account/login"
     payload = {"username": "cloakedshield", "password": "Lythander5!"}
 
@@ -52,7 +53,7 @@ def save_cache(cache_path, data):
 
 def query(token, genres, exclude, limit):
     cache_path = '/Users/zzwang/Documents/MangaScript/cache.pickle'
-    results = load_cache(cache_path, 1800)
+    results = load_cache(cache_path, 300)
     if results:
         return results
     else:
@@ -90,8 +91,7 @@ def query(token, genres, exclude, limit):
         payload['page'] = page
         print(f"Processed: {len(results)}")
 
-    with open(cache_path, 'wb') as handle:
-        pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    save_cache(cache_path, results)
 
     print(f'Actual Hits: {len(results)}')
     return results
@@ -215,8 +215,8 @@ def filter_record(token, results):
                 debug['FastRomance'] = mod
 
             if 'Beautiful Artwork' in categories:
-                mod = .06 + .04 * categories['Beautiful Artwork']
-                mod = min(mod, .2)
+                mod = .02 + .04 * categories['Beautiful Artwork']
+                mod = min(mod, .15)
                 z_rating += mod
                 debug['Beautiful Artwork'] = mod
 
@@ -250,8 +250,9 @@ def filter_record(token, results):
 
     save_cache(series_cache_path, series_cache)
     save_cache(rating_cache_path, rating_cache)
+    z_rating = max(z_rating, record['bayesian_rating'])
     records = sorted(records, key=lambda x: (x['z_rating'], x['average_rating'], x['bayesian_rating']), reverse=True)
-    return records[0:min(300, len(results))]
+    return records[0:min(150, len(results))]
 
 
 def write(records):
@@ -302,7 +303,7 @@ def write(records):
 
 def main():
     genres = ['Romance']
-    exclude = ["Shotacon", "Shoujo Ai", "Shounen Ai", "Yaoi", "Yuri", "Hentai"]
+    exclude = ["Shotacon", "Shoujo Ai", "Shounen Ai", "Yaoi", "Yuri"]
     limit = 6.8
     token = get_bearer_token()
     results = query(token, genres, exclude, limit)
