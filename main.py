@@ -303,7 +303,7 @@ def write(records):
 
 def main():
     genres = ['Romance']
-    exclude = ["Shotacon", "Shoujo Ai", "Shounen Ai", "Yaoi", "Yuri"]
+    exclude = ["Shotacon", "Shoujo Ai", "Shounen Ai", "Yaoi", "Yuri", "Hentai"]
     limit = 6.8
     token = get_bearer_token()
     results = query(token, genres, exclude, limit)
