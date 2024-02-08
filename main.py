@@ -165,6 +165,10 @@ def filter_record(token, results):
         avg_rating = rating['average_rating'] if rating and 'average_rating' in rating else 0
         record['average_rating'] = avg_rating
 
+        if z_rating >= 8.00:
+            z_rating += .5
+            debug['8Club'] = .5
+
         if votes <= 28:
             mod = calc_vote_mod(votes)
             mod = max(0, mod)
@@ -176,7 +180,7 @@ def filter_record(token, results):
         # adjust for old
         year_limit = 2017
         if year <= year_limit:
-            mod = (year_limit - year) / 8
+            mod = (year_limit - year) / 9
             mod = min(mod, 1.5)
             z_rating -= mod
             debug['Year'] = -mod
@@ -231,7 +235,7 @@ def filter_record(token, results):
                 debug['Couple'] = mod
 
             if series['completed'] or ('Complete' in str(series['status']) and 'Ongoing' not in str(series['status'])):
-                mod = .25
+                mod = .1
                 z_rating += mod
                 debug['Completed'] = mod
 
@@ -251,7 +255,8 @@ def filter_record(token, results):
     save_cache(series_cache_path, series_cache)
     save_cache(rating_cache_path, rating_cache)
     z_rating = max(z_rating, record['bayesian_rating'])
-    records = sorted(records, key=lambda x: (x['z_rating'], x['average_rating'], x['bayesian_rating']), reverse=True)
+    records = sorted(records, key=lambda x: (
+        x['z_rating'], x['average_rating'], x['bayesian_rating']), reverse=True)
     return records[0:min(150, len(results))]
 
 
