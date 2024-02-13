@@ -220,7 +220,7 @@ def filter_record(token, results):
 
             if 'Beautiful Artwork' in categories:
                 mod = .02 + .04 * categories['Beautiful Artwork']
-                mod = min(mod, .15)
+                mod = min(mod, .1)
                 z_rating += mod
                 debug['Beautiful Artwork'] = mod
 
