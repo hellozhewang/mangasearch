@@ -297,7 +297,7 @@ def write(records):
             f.write(
                 f'<td><a target="_blank" href="{"https://www.google.com/search?q=" + "read+" + row["title"].replace(" ", "+")}">google</a><br/>'
                 f'<a target="_blank" href="{"https://duckduckgo.com/?q=" + "read+" + row["title"].replace(" ", "+")}">duck</a><br/>'
-                f'<a target="_blank" href="{"https://www.bing.com/search?q=" + "read+" + row["title"].replace(" ", "+")}">bing</a> </td>')
+                f'<a target="_blank" href="{"https://yandex.com/search/?text=" + "read+" + row["title"].replace(" ", "+")}">yandex</a> </td>')
             f.write('</tr>\n')
             i += 1
         f.write('</table>\n')
