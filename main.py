@@ -137,9 +137,6 @@ def get(token, url):
 def filter_record(token, results):
     records = []
 
-    def calc_vote_mod(votes):
-        return -.004*votes + .00068*pow(votes, 2) - .0000128*pow(votes, 3) + .000000064*pow(votes, 4)
-
     series_cache_path = '/Users/zzwang/Documents/MangaScript/series_cache.pickle'
     series_cache = load_cache(series_cache_path)
     if not series_cache:
@@ -158,7 +155,7 @@ def filter_record(token, results):
         debug = {}
         id = record['series_id']
         year = int(record["year"][0:4]) if record["year"] else 0
-        genres = [v["genre"] for v in record["genres"]]
+        genres = set([v["genre"] for v in record["genres"]])
         z_rating = record['bayesian_rating']
         votes = record['rating_votes']
         rating = get_rating(token, id, rating_cache)
@@ -169,13 +166,12 @@ def filter_record(token, results):
             z_rating += .5
             debug['8Club'] = .5
 
-        if votes <= 28:
-            mod = calc_vote_mod(votes)
-            mod = max(0, mod)
-            z_rating += mod
-            debug['Votes'] = mod
-        else:
-            z_rating = max(avg_rating, z_rating)
+        z_rating = max(avg_rating, z_rating)
+
+        if votes <= 30:
+            mod = (30 - votes) * .09
+            z_rating -= mod
+            debug['Votes'] = -mod
 
         # adjust for old
         year_limit = 2017
