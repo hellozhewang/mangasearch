@@ -184,7 +184,7 @@ def filter_record(token, results):
         # adjust for genres
         SEINEN = .10
         SHOUNEN = .025
-        JOSEI = .5
+        JOSEI = .05
         ADULT = .025
         SHOUJO = 0
         if 'Seinen' in genres:
