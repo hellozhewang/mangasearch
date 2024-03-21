@@ -169,7 +169,7 @@ def filter_record(token, results):
         z_rating = max(avg_rating, z_rating)
 
         if votes < 30:
-            mod = pow(30 - votes, 1.1) * .08
+            mod = pow(30 - votes, 1.5) * .02
             z_rating -= mod
             debug['Votes'] = -mod
 
