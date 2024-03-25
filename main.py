@@ -215,8 +215,8 @@ def filter_record(token, results):
                 debug['FastRomance'] = mod
 
             if 'Beautiful Artwork' in categories:
-                mod = .02 + .04 * categories['Beautiful Artwork']
-                mod = min(mod, .1)
+                mod = .01 + .01 * categories['Beautiful Artwork']
+                mod = min(mod, .05)
                 z_rating += mod
                 debug['Beautiful Artwork'] = mod
 
