@@ -1,6 +1,6 @@
 if [ $# -gt 0 ] && [ $1 = "r" ]
 then
-    python3 main.py
+    python3 /Users/zzwang/Documents/MangaScript/mangasearch/main.py
 fi
 
 git -C /Users/zzwang/Documents/MangaScript/mangasearch add .
