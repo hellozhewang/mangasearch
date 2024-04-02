@@ -1,4 +1,5 @@
-#!/bin/sh  
+#!/bin/sh
+set +e  
 while true  
 do  
   sh commit.sh r
