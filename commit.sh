@@ -3,6 +3,6 @@ then
     python3 main.py
 fi
 
-git add .
-git commit -m "update"
-git push origin
+git -C /Users/zzwang/Documents/MangaScript/mangasearch add .
+git -C /Users/zzwang/Documents/MangaScript/mangasearch commit -m "update"
+git -C /Users/zzwang/Documents/MangaScript/mangasearch push origin
