@@ -4,5 +4,5 @@ while true
 do  
   sh commit.sh r
   echo 'Done! sleeping.....'
-  sleep 21600  
+  sleep 3600  
 done
