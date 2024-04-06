@@ -170,7 +170,7 @@ def filter_record(token, results):
         z_rating = max(avg_rating, z_rating)
 
         if votes < 30:
-            mod = pow(30 - votes, 1.5) * .02
+            mod = pow(30 - votes, 1.5) * .0185
             z_rating -= mod
             debug['Votes'] = -mod
 
@@ -210,8 +210,8 @@ def filter_record(token, results):
                           for category in series['categories']}
 
             if 'Fast Romance' in categories:
-                mod = .05 + .02 * categories['Fast Romance']
-                mod = min(mod, .1)
+                mod = .02 + .02 * categories['Fast Romance']
+                mod = min(mod, .05)
                 z_rating += mod
                 debug['FastRomance'] = mod
 
@@ -222,12 +222,12 @@ def filter_record(token, results):
                 debug['Beautiful Artwork'] = mod
 
             if 'Married Couple' in categories or 'Established Couple' in categories:
-                mod = .05
+                mod = .02
                 if 'Married Couple' in categories:
                     mod += .02 * categories['Married Couple']
                 if 'Established Couple' in categories:
                     mod += .02 * categories['Established Couple']
-                mod = min(mod, .1)
+                mod = min(mod, .08)
                 z_rating += mod
                 debug['Couple'] = mod
 
