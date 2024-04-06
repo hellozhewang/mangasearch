@@ -66,6 +66,7 @@ def query(token, genres, exclude, limit):
                "perpage": 100,
                "include_rank_metadata": False,
                "genre": genres,
+               #"list": "102", # RWC
                "list": "none",
                "filter": "no_oneshots",
                "type": ["Manga", "Manhwa", "Manhua"],
