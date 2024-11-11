@@ -260,7 +260,7 @@ def filter_record(token, results):
 def write(records):
     print(f'Rendering: {len(records)}')
     # Get the keys from the dictionary to use as column headers
-    file = '/home/zzwang/mangasearch/mangasearch/index.html'
+    file = '/home/zzwang/mangasearch/src/index.html'
     with open(file, 'w') as f:
         # Write the beginning of the HTML file
         f.write('<html>\n<head><link rel="icon" href="https://pics.freeicons.io/uploads/icons/png/17101267261557740324-512.png" >\n<style>\n')
