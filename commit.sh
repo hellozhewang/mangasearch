@@ -1,8 +1,8 @@
 if [ $# -gt 0 ] && [ $1 = "r" ]
 then
-    python3 /Users/zzwang/Documents/MangaScript/mangasearch/main.py
+    python3 /home/zzwang/mangasearch/src/main.py
 fi
 
-git -C /Users/zzwang/Documents/MangaScript/mangasearch add .
-git -C /Users/zzwang/Documents/MangaScript/mangasearch commit -m "update"
-git -C /Users/zzwang/Documents/MangaScript/mangasearch push origin
+git -C /home/zzwang/mangasearch/src add .
+git -C /home/zzwang/mangasearch/src commit -m "update"
+git -C /home/zzwang/mangasearch/src push origin

@@ -52,7 +52,7 @@ def save_cache(cache_path, data):
 
 
 def query(token, genres, exclude, limit):
-    cache_path = '/Users/zzwang/Documents/MangaScript/cache.pickle'
+    cache_path = '/home/zzwang/mangasearch/cache.pickle'
     results = load_cache(cache_path, 300)
     if results:
         return results
@@ -138,13 +138,13 @@ def get(token, url):
 def filter_record(token, results):
     records = []
 
-    series_cache_path = '/Users/zzwang/Documents/MangaScript/series_cache.pickle'
+    series_cache_path = '/home/zzwang/mangasearch/series_cache.pickle'
     series_cache = load_cache(series_cache_path)
     if not series_cache:
         series_cache = {}
     print(f'Series cache len: {len(series_cache)}')
 
-    rating_cache_path = '/Users/zzwang/Documents/MangaScript/rating_cache.pickle'
+    rating_cache_path = '/home/zzwang/mangasearch/rating_cache.pickle'
     rating_cache = load_cache(rating_cache_path)
     if not rating_cache:
         rating_cache = {}
@@ -260,7 +260,7 @@ def filter_record(token, results):
 def write(records):
     print(f'Rendering: {len(records)}')
     # Get the keys from the dictionary to use as column headers
-    file = '/Users/zzwang/Documents/MangaScript/mangasearch/index.html'
+    file = '/home/zzwang/mangasearch/mangasearch/index.html'
     with open(file, 'w') as f:
         # Write the beginning of the HTML file
         f.write('<html>\n<head><link rel="icon" href="https://pics.freeicons.io/uploads/icons/png/17101267261557740324-512.png" >\n<style>\n')
