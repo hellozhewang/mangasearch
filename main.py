@@ -6,7 +6,7 @@ import random
 from collections import defaultdict
 from datetime import datetime
 import sys
-import math
+
 
 def get_file_age_seconds(path):
 
@@ -169,30 +169,42 @@ def filter_record(token, results):
 
         z_rating = max(avg_rating, z_rating)
 
-        if votes < 50:
-            # Instead of power law, use a simpler penalty that caps out
-            # This prevents new series from tanking too hard
-            penalty = (50 - votes) * 0.02 
-            z_rating -= penalty
-            debug['LowVotes'] = -penalty
+        
+        if votes < 5:
+            continue
+
+        if year - 3 >= datetime.now().year and votes < 30:
+            hype_gravity = 8
+            global_mean = 6.40
+            
+            # Calculate the aggressive "Hype Score"
+            hype_score = (votes * avg_rating + hype_gravity * global_mean) / (votes + hype_gravity)
+            
+            # The 'mod' is the difference between the Hype Score and the Conservative Score
+            # Example: Hype says 8.0, Conservative says 6.5 -> Bonus is +1.5
+            mod = hype_score - record['bayesian_rating']
+            
+            # Sanity check: Ensure we don't accidentally punish high-performing stuff 
+            # (though mathematically unlikely with this formula)
+            mod = max(0, mod)
+            
+            z_rating += mod
+            debug['Trending'] = mod
 
         # adjust for old
-        CURRENT_YEAR = datetime.now().year
-        if year > 0 and year < (CURRENT_YEAR - 5):
-            age = CURRENT_YEAR - year
-            # Log base 10 of age: 10 years = 1.0, 100 years = 2.0
-            # Multiplied by 0.3, so a 30-year-old manga loses ~0.45 points
-            age_penalty = math.log10(age) * 0.5 
-            age_penalty = min(age_penalty, 1.5) # Cap at 1.5
-            z_rating -= age_penalty
-            debug['Age'] = -age_penalty
+        year_limit = 2018
+        if year <= year_limit:
+            mod = (year_limit - year) / 9
+            mod = min(mod, 1.5)
+            z_rating -= mod
+            debug['Year'] = -mod
 
         # adjust for genres
         SEINEN = .15
         SHOUNEN = .025
         JOSEI = .05
         ADULT = .025
-        SHOUJO = -.20
+        SHOUJO = -.2
         if 'Seinen' in genres:
             z_rating += SEINEN
             debug['Seinen'] = SEINEN
