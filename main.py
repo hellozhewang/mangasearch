@@ -173,7 +173,7 @@ def filter_record(token, results):
             # Instead of power law, use a simpler penalty that caps out
             # This prevents new series from tanking too hard
             penalty = (50 - votes) * 0.02 
-            score -= penalty
+            z_rating -= penalty
             debug['LowVotes'] = -penalty
 
         # adjust for old
@@ -184,7 +184,7 @@ def filter_record(token, results):
             # Multiplied by 0.3, so a 30-year-old manga loses ~0.45 points
             age_penalty = math.log10(age) * 0.5 
             age_penalty = min(age_penalty, 1.5) # Cap at 1.5
-            score -= age_penalty
+            z_rating -= age_penalty
             debug['Age'] = -age_penalty
 
         # adjust for genres
