@@ -194,26 +194,19 @@ def filter_record(token, results):
             debug['Year'] = -mod
 
         # adjust for genres
-        SEINEN = .15
-        SHOUNEN = .025
-        JOSEI = .05
-        ADULT = .025
-        SHOUJO = -.2
-        if 'Seinen' in genres:
-            z_rating += SEINEN
-            debug['Seinen'] = SEINEN
-        if 'Shounen' in genres:
-            z_rating += SHOUNEN
-            debug['Shounen'] = SHOUNEN
-        if 'Josei' in genres:
-            z_rating += JOSEI
-            debug['Josei'] = JOSEI
-        if 'Adult' in genres:
-            z_rating += ADULT
-            debug['Adult'] = ADULT
-        if 'Shoujo' in genres:
-            z_rating += SHOUJO
-            debug['Shoujo'] = SHOUJO
+        genre_weights = {
+            'Seinen': 0.10,
+            'Shounen': 0.025,
+            'Josei': 0.05,
+            'Adult': 0.025,
+            'Shoujo': -0.10,
+            'Harem' : -0.10,
+        }
+
+        for genre, weight in genre_weights.items():
+            if genre in genres:
+                z_rating += weight
+                debug[genre] = weight
 
         series = get_series(token, id, series_cache)
         if series:
