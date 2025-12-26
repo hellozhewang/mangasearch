@@ -168,7 +168,7 @@ def filter_record(token, results):
             debug['8Club'] = .5
 
         if votes < 30:
-            hype_gravity = 15
+            hype_gravity = 25
             global_mean = 6.40
             
             # Calculate the aggressive "Hype Score"
