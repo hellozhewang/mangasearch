@@ -6,7 +6,7 @@ import random
 from collections import defaultdict
 from datetime import datetime
 import sys
-
+import math
 
 def get_file_age_seconds(path):
 
@@ -169,25 +169,30 @@ def filter_record(token, results):
 
         z_rating = max(avg_rating, z_rating)
 
-        if votes < 30:
-            mod = pow(30 - votes, 1.5) * .0185
-            z_rating -= mod
-            debug['Votes'] = -mod
+        if votes < 50:
+            # Instead of power law, use a simpler penalty that caps out
+            # This prevents new series from tanking too hard
+            penalty = (50 - votes) * 0.02 
+            score -= penalty
+            debug['LowVotes'] = -penalty
 
         # adjust for old
-        year_limit = 2017
-        if year <= year_limit:
-            mod = (year_limit - year) / 9
-            mod = min(mod, 1.5)
-            z_rating -= mod
-            debug['Year'] = -mod
+        CURRENT_YEAR = datetime.now().year
+        if year > 0 and year < (CURRENT_YEAR - 5):
+            age = CURRENT_YEAR - year
+            # Log base 10 of age: 10 years = 1.0, 100 years = 2.0
+            # Multiplied by 0.3, so a 30-year-old manga loses ~0.45 points
+            age_penalty = math.log10(age) * 0.5 
+            age_penalty = min(age_penalty, 1.5) # Cap at 1.5
+            score -= age_penalty
+            debug['Age'] = -age_penalty
 
         # adjust for genres
-        SEINEN = .10
+        SEINEN = .15
         SHOUNEN = .025
         JOSEI = .05
         ADULT = .025
-        SHOUJO = -.10
+        SHOUJO = -.20
         if 'Seinen' in genres:
             z_rating += SEINEN
             debug['Seinen'] = SEINEN
