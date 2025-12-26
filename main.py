@@ -167,8 +167,6 @@ def filter_record(token, results):
             z_rating += .5
             debug['8Club'] = .5
 
-        z_rating = max(avg_rating, z_rating)
-
         if votes < 30:
             hype_gravity = 15
             global_mean = 6.40
