@@ -200,7 +200,7 @@ def filter_record(token, results):
             'Josei': 0.05,
             'Adult': 0.025,
             'Shoujo': -0.10,
-            'Harem' : -0.10,
+            'Harem' : -0.25,
         }
 
         for genre, weight in genre_weights.items():
