@@ -187,7 +187,7 @@ def filter_record(token, results):
 
         # adjust for old
         year_limit = 2020
-        if year <= year_limit:
+        if year < year_limit:
             mod = (year_limit - year) / 9
             mod = min(mod, 2.5)
             z_rating -= mod
