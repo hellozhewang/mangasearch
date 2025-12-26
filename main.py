@@ -173,8 +173,8 @@ def filter_record(token, results):
         if votes < 5:
             continue
 
-        if year - 3 >= datetime.now().year and votes < 30:
-            hype_gravity = 8
+        if year >= datetime.now().year - 3 and votes < 30:
+            hype_gravity = 15
             global_mean = 6.40
             
             # Calculate the aggressive "Hype Score"
