@@ -186,10 +186,10 @@ def filter_record(token, results):
             debug['Trending'] = mod
 
         # adjust for old
-        year_limit = 2018
+        year_limit = 2020
         if year <= year_limit:
             mod = (year_limit - year) / 9
-            mod = min(mod, 1.5)
+            mod = min(mod, 2.5)
             z_rating -= mod
             debug['Year'] = -mod
 
