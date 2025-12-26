@@ -169,11 +169,7 @@ def filter_record(token, results):
 
         z_rating = max(avg_rating, z_rating)
 
-        
-        if votes < 5:
-            continue
-
-        if year >= datetime.now().year - 3 and votes < 30:
+        if votes < 30:
             hype_gravity = 15
             global_mean = 6.40
             
