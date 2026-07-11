@@ -5,7 +5,7 @@ from datetime import datetime
 from config import SCORING, SEARCH
 
 
-def search_series(client, cache, min_rating):
+def search_series(client, db, min_rating):
     payload = {
         'page': 1,
         'perpage': 100,
@@ -36,7 +36,7 @@ def search_series(client, cache, min_rating):
             break
         payload['page'] += 1
 
-    cache.kv_put('search_results', results)
+    db.kv_put('search_results', results)
     return results
 
 
@@ -111,14 +111,14 @@ def score_record(record, rating, series):
     return score, breakdown, avg_rating, completed
 
 
-def build_records(client, cache, results, offline, top_n):
+def build_records(client, db, results, offline, top_n):
     ids = [r['series_id'] for r in results]
 
-    # Two batched queries pull every fresh cache hit up front; only the misses
-    # go to the network (rate-limited, one call per series).
-    ratings = cache.get_many('rating', ids, include_expired=offline)
-    series_map = cache.get_many('series', ids, include_expired=offline)
-    print(f'Cache hits: {len(ratings)}/{len(ids)} ratings, '
+    # Two batched queries pull every fresh stored entry up front; only the
+    # missing/expired ones go to the network (rate-limited, one call per series).
+    ratings = db.get_many('rating', ids, include_expired=offline)
+    series_map = db.get_many('series', ids, include_expired=offline)
+    print(f'In DB: {len(ratings)}/{len(ids)} ratings, '
           f'{len(series_map)}/{len(ids)} series')
 
     if not offline:
@@ -135,12 +135,12 @@ def build_records(client, cache, results, offline, top_n):
                 resp = client.get(path_tpl.format(id_))
                 if resp:
                     store[id_] = resp
-                    cache.put(kind, id_, resp)
+                    db.put(kind, id_, resp)
                 fetched += 1
                 if fetched % 50 == 0:
-                    cache.commit()
+                    db.commit()
                     print(f'Fetched: {fetched}/{to_fetch}')
-        cache.commit()
+        db.commit()
 
     records = []
     for record in results:

@@ -1,6 +1,7 @@
-# local caches
+# local data
 *.pickle
-cache.db*
+*.db
+*.db-*
 
 # secrets — never commit these
 .env

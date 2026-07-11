@@ -2,15 +2,16 @@
 """MangaSearch — find highly-rated manga you haven't read on MangaUpdates.
 
 Searches series not on any of your MangaUpdates lists, enriches them with
-rating/series metadata (cached in SQLite), scores them with a tunable
-heuristic, and renders a static, filterable HTML page (docs/index.html).
+rating/series metadata (stored in SQLite, refreshed as entries age out),
+scores them with a tunable heuristic, and renders a static, filterable HTML
+page (docs/index.html).
 
-Modules: config (settings), db (SQLite cache), api (MangaUpdates client),
+Modules: config (settings), db (SQLite store), api (MangaUpdates client),
 logic (search + scoring).
 
 Usage:
     python3 main.py                 # full refresh (hits the API)
-    python3 main.py --offline       # re-render from the local cache only
+    python3 main.py --offline       # re-render from the local DB only
     python3 main.py --top 100 --min-rating 7.0
 """
 
@@ -19,8 +20,8 @@ import json
 from datetime import datetime
 
 from api import MangaUpdatesClient, load_credentials
-from config import DB_PATH, OUTPUT_PATH, SEARCH_CACHE_TTL_SECS, TEMPLATE_PATH
-from db import Cache, migrate_legacy_pickles
+from config import DB_PATH, OUTPUT_PATH, SEARCH_RESULTS_TTL_SECS, TEMPLATE_PATH
+from db import Database, migrate_legacy_pickles
 from logic import build_records, search_series
 
 
@@ -39,31 +40,31 @@ def render(records):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--offline', action='store_true',
-                        help='render from the local cache only; no network, no login')
+                        help='render from the local DB only; no network, no login')
     parser.add_argument('--top', type=int, default=150,
                         help='number of series to render (default: 150)')
     parser.add_argument('--min-rating', type=float, default=6.8,
                         help='stop paging once ratings drop below this (default: 6.8)')
     args = parser.parse_args()
 
-    cache = Cache(DB_PATH)
-    migrate_legacy_pickles(cache)
+    db = Database(DB_PATH)
+    migrate_legacy_pickles(db)
 
     client = None
     if args.offline:
-        results = cache.kv_get('search_results', max_age_secs=float('inf'))
+        results = db.kv_get('search_results', max_age_secs=float('inf'))
         if results is None:
-            raise SystemExit('--offline needs cached search results in cache.db')
-        print(f'Search cache: {len(results)} records')
+            raise SystemExit(f'--offline needs stored search results in {DB_PATH.name}')
+        print(f'Search results from DB: {len(results)}')
     else:
         client = MangaUpdatesClient(*load_credentials())
-        results = cache.kv_get('search_results', SEARCH_CACHE_TTL_SECS)
+        results = db.kv_get('search_results', SEARCH_RESULTS_TTL_SECS)
         if results is None:
-            results = search_series(client, cache, args.min_rating)
+            results = search_series(client, db, args.min_rating)
         else:
-            print(f'Search cache hit: {len(results)} records')
+            print(f'Search results still fresh in DB: {len(results)}')
 
-    records = build_records(client, cache, results, args.offline, args.top)
+    records = build_records(client, db, results, args.offline, args.top)
     render(records)
 
 

@@ -79,5 +79,5 @@ def load_credentials():
     if not (username and password):
         raise SystemExit('Set MU_USERNAME / MU_PASSWORD env vars or put them in '
                          f'{PROJECT_ROOT / ".env"} (gitignored). Use --offline to '
-                         'render from the cache without logging in.')
+                         'render from the local DB without logging in.')
     return username, password

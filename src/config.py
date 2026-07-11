@@ -1,11 +1,11 @@
-"""Shared configuration: paths, search filters, cache TTLs, scoring weights."""
+"""Shared configuration: paths, search filters, refresh TTLs, scoring weights."""
 
 from pathlib import Path
 
 SRC_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SRC_DIR.parent
 
-DB_PATH = PROJECT_ROOT / 'cache.db'
+DB_PATH = PROJECT_ROOT / 'mangasearch.db'
 TEMPLATE_PATH = PROJECT_ROOT / 'templates' / 'template.html'
 OUTPUT_PATH = PROJECT_ROOT / 'docs' / 'index.html'
 
@@ -16,7 +16,7 @@ LEGACY_PICKLES = {
     'rating': PROJECT_ROOT / 'rating_cache.pickle',
 }
 
-SEARCH_CACHE_TTL_SECS = 300
+SEARCH_RESULTS_TTL_SECS = 300
 REQUEST_DELAY_SECS = 0.75
 
 DAY = 3600 * 24
