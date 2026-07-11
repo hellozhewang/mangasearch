@@ -1,2 +1,12 @@
+# local caches
 *.pickle
-.vscode
+cache.db*
+
+# secrets — never commit these
+.env
+github-recovery-codes.txt
+
+# editor / macOS junk
+.vscode/
+.DS_Store
+._*
