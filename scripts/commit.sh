@@ -4,7 +4,7 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(dirname "$DIR")"
 
 if [ $# -gt 0 ] && [ "$1" = "r" ]; then
-    python3 "$DIR/main.py"
+    python3 "$ROOT/src/main.py"
 fi
 
 git -C "$ROOT" add .
