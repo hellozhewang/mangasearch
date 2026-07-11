@@ -9,13 +9,6 @@ DB_PATH = PROJECT_ROOT / 'data' / 'mangasearch.db'
 TEMPLATE_PATH = PROJECT_ROOT / 'templates' / 'template.html'
 OUTPUT_PATH = PROJECT_ROOT / 'docs' / 'index.html'
 
-# Legacy pickle caches — imported into SQLite once, then no longer touched.
-LEGACY_PICKLES = {
-    'search': PROJECT_ROOT / 'cache.pickle',
-    'series': PROJECT_ROOT / 'series_cache.pickle',
-    'rating': PROJECT_ROOT / 'rating_cache.pickle',
-}
-
 SEARCH_RESULTS_TTL_SECS = 300
 REQUEST_DELAY_SECS = 0.75
 

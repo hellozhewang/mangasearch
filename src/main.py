@@ -21,7 +21,7 @@ from datetime import datetime
 
 from api import MangaUpdatesClient, load_credentials
 from config import DB_PATH, OUTPUT_PATH, SEARCH_RESULTS_TTL_SECS, TEMPLATE_PATH
-from db import Database, migrate_legacy_pickles
+from db import Database
 from logic import build_records, search_series
 
 
@@ -48,7 +48,6 @@ def main():
     args = parser.parse_args()
 
     db = Database(DB_PATH)
-    migrate_legacy_pickles(db)
 
     client = None
     if args.offline:

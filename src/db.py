@@ -1,4 +1,4 @@
-"""SQLite store for API data, plus one-time migration from the old pickles.
+"""SQLite store for API data.
 
 Not a throwaway cache: this is the persistent local copy of MangaUpdates data.
 Entries carry a jittered `expires_at` so stale ones get refreshed from the API
@@ -6,12 +6,11 @@ a few at a time instead of all at once.
 """
 
 import json
-import pickle
 import random
 import sqlite3
 import time
 
-from config import DAY, LEGACY_PICKLES, TTL
+from config import TTL
 
 
 class Database:
@@ -82,33 +81,3 @@ class Database:
 
     def entity_count(self):
         return self.conn.execute('SELECT COUNT(*) FROM entities').fetchone()[0]
-
-
-def migrate_legacy_pickles(db):
-    """One-time import of the old pickle caches into SQLite."""
-    if db.entity_count() > 0:
-        return
-    for kind in ('series', 'rating'):
-        path = LEGACY_PICKLES[kind]
-        if not path.is_file():
-            continue
-        with open(path, 'rb') as fh:
-            data = pickle.load(fh)
-        for id_, entry in data.items():
-            # Old stamps were written as write_time + jitter and considered
-            # fresh for 10 more days; keep that expiry on import.
-            stamp = entry.pop('cache_timestamp', time.time())
-            db.conn.execute(
-                'INSERT OR REPLACE INTO entities (kind, id, data, expires_at) '
-                'VALUES (?, ?, ?, ?)',
-                (kind, id_, json.dumps(entry), stamp + 10 * DAY))
-        print(f'Migrated {len(data)} {kind} entries from {path.name}')
-    search_path = LEGACY_PICKLES['search']
-    if search_path.is_file():
-        with open(search_path, 'rb') as fh:
-            results = pickle.load(fh)
-        db.conn.execute(
-            'INSERT OR REPLACE INTO kv (key, data, updated_at) VALUES (?, ?, ?)',
-            ('search_results', json.dumps(results), search_path.stat().st_mtime))
-        print(f'Migrated {len(results)} search results from {search_path.name}')
-    db.commit()
