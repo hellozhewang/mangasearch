@@ -22,6 +22,7 @@ class Database:
     """
 
     def __init__(self, path):
+        path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(str(path))
         self.conn.execute('PRAGMA journal_mode=WAL')
         self.conn.execute('''

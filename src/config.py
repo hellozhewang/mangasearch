@@ -5,7 +5,7 @@ from pathlib import Path
 SRC_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SRC_DIR.parent
 
-DB_PATH = PROJECT_ROOT / 'mangasearch.db'
+DB_PATH = PROJECT_ROOT / 'data' / 'mangasearch.db'
 TEMPLATE_PATH = PROJECT_ROOT / 'templates' / 'template.html'
 OUTPUT_PATH = PROJECT_ROOT / 'docs' / 'index.html'
 
