@@ -1,8 +1,15 @@
 """Business logic: series search, scoring heuristic, and record assembly."""
 
+import html
+import logging
+import random
+import re
+import time
 from datetime import datetime
 
-from config import SCORING, SEARCH
+from config import SCORING, SEARCH, TTL
+
+log = logging.getLogger(__name__)
 
 
 def search_series(client, db, min_rating):
@@ -25,12 +32,12 @@ def search_series(client, db, min_rating):
             break
         if total is None:
             total = response['total_hits']
-            print(f'Total hits: {total}')
+            log.info('Total hits: %s', total)
         page_records = [r['record'] for r in response['results'] if 'record' in r]
         if not page_records:
             break
         results.extend(page_records)
-        print(f'Fetched: {len(results)}')
+        log.info('Fetched: %d', len(results))
         lowest = page_records[-1].get('bayesian_rating') or 0
         if len(results) >= total or lowest < min_rating:
             break
@@ -111,6 +118,13 @@ def score_record(record, rating, series):
     return score, breakdown, avg_rating, completed
 
 
+def clean_description(raw):
+    """MU descriptions carry HTML: convert breaks to newlines, drop the rest."""
+    text = re.sub(r'<br\s*/?>', '\n', str(raw or ''), flags=re.I)
+    text = re.sub(r'<[^>]+>', '', text)
+    return html.unescape(text).strip()
+
+
 def build_records(client, db, results, offline, top_n):
     ids = [r['series_id'] for r in results]
 
@@ -118,15 +132,15 @@ def build_records(client, db, results, offline, top_n):
     # missing/expired ones go to the network (rate-limited, one call per series).
     ratings = db.get_many('rating', ids, include_expired=offline)
     series_map = db.get_many('series', ids, include_expired=offline)
-    print(f'In DB: {len(ratings)}/{len(ids)} ratings, '
-          f'{len(series_map)}/{len(ids)} series')
+    log.info('In DB: %d/%d ratings, %d/%d series',
+             len(ratings), len(ids), len(series_map), len(ids))
 
     if not offline:
         missing_ratings = [i for i in ids if i not in ratings]
         missing_series = [i for i in ids if i not in series_map]
         to_fetch = len(missing_ratings) + len(missing_series)
-        print(f'Fetching {len(missing_ratings)} ratings, '
-              f'{len(missing_series)} series from API')
+        log.info('Fetching %d ratings, %d series from API',
+                 len(missing_ratings), len(missing_series))
         fetched = 0
         for kind, path_tpl, missing, store in (
                 ('rating', '/series/{}/ratingrainbow', missing_ratings, ratings),
@@ -135,11 +149,14 @@ def build_records(client, db, results, offline, top_n):
                 resp = client.get(path_tpl.format(id_))
                 if resp:
                     store[id_] = resp
-                    db.put(kind, id_, resp)
+                    # Jittered lifetime so refreshes stay spread out over days
+                    # instead of the whole corpus expiring at once.
+                    expires_at = time.time() + random.randint(*TTL[kind])
+                    db.put(kind, id_, resp, expires_at)
                 fetched += 1
                 if fetched % 50 == 0:
                     db.commit()
-                    print(f'Fetched: {fetched}/{to_fetch}')
+                    log.info('Fetched: %d/%d', fetched, to_fetch)
         db.commit()
 
     records = []
@@ -159,6 +176,7 @@ def build_records(client, db, results, offline, top_n):
             'year': str(record.get('year') or ''),
             'genres': sorted({g['genre'] for g in record.get('genres', [])}),
             'status': ' · '.join(s.strip() for s in status.splitlines() if s.strip()),
+            'description': clean_description((series or {}).get('description')),
             'completed': completed,
             'votes': record.get('rating_votes') or 0,
             'bayesian': record.get('bayesian_rating') or 0,

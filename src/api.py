@@ -1,12 +1,15 @@
 """MangaUpdates API client (stdlib-only) and credential loading."""
 
 import json
+import logging
 import os
 import time
 import urllib.error
 import urllib.request
 
 from config import PROJECT_ROOT, REQUEST_DELAY_SECS
+
+log = logging.getLogger(__name__)
 
 
 class MangaUpdatesClient:
@@ -17,33 +20,55 @@ class MangaUpdatesClient:
         self._password = password
         self._token = None
 
-    def _request(self, method, path, payload=None, retries=3):
+    def _attempt(self, method, path, payload=None):
+        """One HTTP attempt. Returns (status_code, body_dict); 0 = no response."""
         headers = {'Content-Type': 'application/json'}
         if self._token:
             headers['Authorization'] = 'Bearer ' + self._token
         data = json.dumps(payload).encode() if payload is not None else None
         req = urllib.request.Request(self.BASE + path, data=data,
                                      headers=headers, method=method)
-        last_err = None
-        for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                return resp.status, json.loads(resp.read().decode())
+        except urllib.error.HTTPError as err:
             try:
-                with urllib.request.urlopen(req, timeout=30) as resp:
-                    return json.loads(resp.read().decode())
-            except (urllib.error.URLError, TimeoutError, ValueError) as err:
-                last_err = err
-                status = getattr(err, 'code', None)
-                if status is not None and 400 <= status < 500 and status != 429:
-                    break  # client error, retrying won't help
-                time.sleep(2 ** attempt)
-        print(f'Request failed: {method} {path}: {last_err}')
+                body = json.loads(err.read().decode())
+            except (ValueError, OSError):
+                body = {'status': 'exception', 'reason': str(err)}
+            return err.code, body
+        except (urllib.error.URLError, TimeoutError, ValueError) as err:
+            return 0, {'status': 'exception', 'reason': str(err)}
+
+    def _request(self, method, path, payload=None, retries=3):
+        for attempt in range(retries):
+            status, body = self._attempt(method, path, payload)
+            if status == 200:
+                return body
+            if 400 <= status < 500 and status != 429:
+                break  # client error, retrying won't help
+            time.sleep(2 ** attempt)
+        log.warning('Request failed: %s %s: %s %s', method, path, status, body)
         return None
+
+    def call(self, method, path, payload=None):
+        """Single authenticated call returning (status_code, body) so the
+        caller can surface API errors (e.g. the 412 write throttle)."""
+        self._ensure_token()
+        status, body = self._attempt(method, path, payload)
+        if status == 401:  # session expired: re-login once and retry
+            self._token = None
+            self._ensure_token()
+            status, body = self._attempt(method, path, payload)
+        return status, body
 
     def login(self):
         resp = self._request('PUT', '/account/login',
                              {'username': self._username, 'password': self._password})
         if not resp or resp.get('status') != 'success':
-            raise SystemExit(f'Login failed: {resp}')
+            raise RuntimeError(f'Login failed: {resp}')
         self._token = resp['context']['session_token']
+        log.info('Logged in to MangaUpdates')
 
     def _ensure_token(self):
         if not self._token:

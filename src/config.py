@@ -6,11 +6,13 @@ SRC_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SRC_DIR.parent
 
 DB_PATH = PROJECT_ROOT / 'data' / 'mangasearch.db'
-TEMPLATE_PATH = PROJECT_ROOT / 'templates' / 'template.html'
-OUTPUT_PATH = PROJECT_ROOT / 'docs' / 'index.html'
+LOG_DIR = PROJECT_ROOT / 'logs'
 
 SEARCH_RESULTS_TTL_SECS = 300
 REQUEST_DELAY_SECS = 0.75
+REFRESH_INTERVAL_SECS = 3600
+TOP_N = 150
+MIN_RATING = 6.8
 
 DAY = 3600 * 24
 # TTLs are jittered per entry so refreshes stay spread out over time.

@@ -16,55 +16,51 @@ Usage:
 """
 
 import argparse
-import json
-from datetime import datetime
+import logging
 
+import log as logsetup
 from api import MangaUpdatesClient, load_credentials
-from config import DB_PATH, OUTPUT_PATH, SEARCH_RESULTS_TTL_SECS, TEMPLATE_PATH
+from config import (DB_PATH, MIN_RATING, SEARCH_RESULTS_TTL_SECS, TOP_N)
 from db import Database
 from logic import build_records, search_series
 
+log = logging.getLogger(__name__)
 
-def render(records):
-    print(f'Rendering {len(records)} records -> {OUTPUT_PATH}')
-    template = TEMPLATE_PATH.read_text(encoding='utf-8')
-    # '</' must not appear inside the inline <script> data block.
-    data_json = json.dumps(records, ensure_ascii=False).replace('</', '<\\/')
-    page = (template
-            .replace('__UPDATED__', datetime.now().strftime('%Y-%m-%d %H:%M'))
-            .replace('__DATA_JSON__', data_json))
-    OUTPUT_PATH.parent.mkdir(exist_ok=True)
-    OUTPUT_PATH.write_text(page, encoding='utf-8')
+
+def refresh(offline=False, top=TOP_N, min_rating=MIN_RATING):
+    """Run the full pipeline: search -> enrich -> score -> render."""
+    db = Database(DB_PATH)
+
+    client = None
+    if offline:
+        results = db.kv_get('search_results', max_age_secs=float('inf'))
+        if results is None:
+            raise SystemExit(f'--offline needs stored search results in {DB_PATH.name}')
+        log.info('Search results from DB: %d', len(results))
+    else:
+        client = MangaUpdatesClient(*load_credentials())
+        results = db.kv_get('search_results', SEARCH_RESULTS_TTL_SECS)
+        if results is None:
+            results = search_series(client, db, min_rating)
+        else:
+            log.info('Search results still fresh in DB: %d', len(results))
+
+    records = build_records(client, db, results, offline, top)
+    log.info('Publishing %d scored records to the DB', len(records))
+    db.kv_put('scored_records', records)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--offline', action='store_true',
                         help='render from the local DB only; no network, no login')
-    parser.add_argument('--top', type=int, default=150,
-                        help='number of series to render (default: 150)')
-    parser.add_argument('--min-rating', type=float, default=6.8,
-                        help='stop paging once ratings drop below this (default: 6.8)')
+    parser.add_argument('--top', type=int, default=TOP_N,
+                        help=f'number of series to render (default: {TOP_N})')
+    parser.add_argument('--min-rating', type=float, default=MIN_RATING,
+                        help=f'stop paging once ratings drop below this (default: {MIN_RATING})')
     args = parser.parse_args()
-
-    db = Database(DB_PATH)
-
-    client = None
-    if args.offline:
-        results = db.kv_get('search_results', max_age_secs=float('inf'))
-        if results is None:
-            raise SystemExit(f'--offline needs stored search results in {DB_PATH.name}')
-        print(f'Search results from DB: {len(results)}')
-    else:
-        client = MangaUpdatesClient(*load_credentials())
-        results = db.kv_get('search_results', SEARCH_RESULTS_TTL_SECS)
-        if results is None:
-            results = search_series(client, db, args.min_rating)
-        else:
-            print(f'Search results still fresh in DB: {len(results)}')
-
-    records = build_records(client, db, results, args.offline, args.top)
-    render(records)
+    logsetup.setup()
+    refresh(args.offline, args.top, args.min_rating)
 
 
 if __name__ == '__main__':

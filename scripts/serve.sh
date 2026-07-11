@@ -7,8 +7,9 @@
 #   sh serve.sh uninstall      stop and remove the launchd agent
 #   sh serve.sh run [port]     run in the foreground (what launchd executes)
 #
-# Serves ONLY docs/ (just index.html) — never the repo root, which holds
-# .env, the cache DB, and .git. Default port: 8000.
+# Runs src/serve.py: static docs/ plus the /api/* JSON endpoints. Static
+# serving covers ONLY docs/ — never the repo root, which holds .env, the
+# DB, and .git. Default port: 8000.
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(dirname "$DIR")"
@@ -51,7 +52,7 @@ EOF
 
 case "${1:-status}" in
     run)
-        exec python3 -m http.server "$PORT" --bind 0.0.0.0 --directory "$ROOT/docs"
+        exec python3 -u "$ROOT/src/serve.py" "$PORT"
         ;;
     start)
         [ -f "$PLIST" ] || install_agent

@@ -1,16 +1,13 @@
 """SQLite store for API data.
 
 Not a throwaway cache: this is the persistent local copy of MangaUpdates data.
-Entries carry a jittered `expires_at` so stale ones get refreshed from the API
-a few at a time instead of all at once.
+Entries carry an `expires_at` deadline; when it lives and by how much is the
+caller's policy (see logic.py), the store only persists and filters by it.
 """
 
 import json
-import random
 import sqlite3
 import time
-
-from config import TTL
 
 
 class Database:
@@ -38,6 +35,14 @@ class Database:
                 data       TEXT NOT NULL,
                 updated_at REAL NOT NULL
             )''')
+        self.conn.execute('''
+            CREATE TABLE IF NOT EXISTS lists (
+                list_id    INTEGER PRIMARY KEY,
+                title      TEXT NOT NULL,
+                icon       TEXT NOT NULL DEFAULT '',
+                custom     INTEGER NOT NULL DEFAULT 0,
+                updated_at REAL NOT NULL
+            )''')
         self.conn.commit()
 
     def get_many(self, kind, ids, include_expired=False):
@@ -57,8 +62,7 @@ class Database:
                     out[id_] = json.loads(data)
         return out
 
-    def put(self, kind, id_, value):
-        expires_at = time.time() + random.randint(*TTL[kind])
+    def put(self, kind, id_, value, expires_at):
         self.conn.execute(
             'INSERT OR REPLACE INTO entities (kind, id, data, expires_at) '
             'VALUES (?, ?, ?, ?)', (kind, id_, json.dumps(value), expires_at))
@@ -69,6 +73,12 @@ class Database:
         if row and time.time() - row[1] < max_age_secs:
             return json.loads(row[0])
         return None
+
+    def kv_age(self, key):
+        """Seconds since the kv entry was written, or None if absent."""
+        row = self.conn.execute(
+            'SELECT updated_at FROM kv WHERE key = ?', (key,)).fetchone()
+        return time.time() - row[0] if row else None
 
     def kv_put(self, key, value):
         self.conn.execute(
@@ -81,3 +91,23 @@ class Database:
 
     def entity_count(self):
         return self.conn.execute('SELECT COUNT(*) FROM entities').fetchone()[0]
+
+    def save_lists(self, lists):
+        """Replace the user-list map (list_id -> title/icon)."""
+        now = time.time()
+        self.conn.execute('DELETE FROM lists')
+        self.conn.executemany(
+            'INSERT INTO lists (list_id, title, icon, custom, updated_at) '
+            'VALUES (?, ?, ?, ?, ?)',
+            [(l['id'], l['title'], l['icon'], int(l['custom']), now) for l in lists])
+        self.conn.commit()
+
+    def get_lists(self, max_age_secs):
+        """Return the stored user lists, or None if missing/stale."""
+        rows = self.conn.execute(
+            'SELECT list_id, title, icon, custom, updated_at FROM lists '
+            'ORDER BY list_id').fetchall()
+        if not rows or time.time() - min(r[4] for r in rows) > max_age_secs:
+            return None
+        return [{'id': r[0], 'title': r[1], 'icon': r[2], 'custom': bool(r[3])}
+                for r in rows]

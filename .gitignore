@@ -2,6 +2,10 @@
 *.pickle
 *.db
 *.db-*
+logs/
+
+# generated page (served by serve.py, not committed)
+docs/
 
 # secrets — never commit these
 .env
@@ -11,3 +15,6 @@ github-recovery-codes.txt
 .vscode/
 .DS_Store
 ._*
+
+# frontend build deps
+node_modules/
