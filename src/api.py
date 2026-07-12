@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import random
 import time
 import urllib.error
 import urllib.request
@@ -40,15 +41,22 @@ class MangaUpdatesClient:
         except (urllib.error.URLError, TimeoutError, ValueError) as err:
             return 0, {'status': 'exception', 'reason': str(err)}
 
-    def _request(self, method, path, payload=None, retries=3):
+    def _request(self, method, path, payload=None, retries=5):
         for attempt in range(retries):
             status, body = self._attempt(method, path, payload)
             if status == 200:
                 return body
             if 400 <= status < 500 and status != 429:
                 break  # client error, retrying won't help
-            time.sleep(2 ** attempt)
-        log.warning('Request failed: %s %s: %s %s', method, path, status, body)
+            if attempt < retries - 1:
+                # Exponential backoff with jitter: ~2s, 4s, 8s, 16s (max 60s).
+                delay = min(60, 2 ** (attempt + 1)) * random.uniform(0.75, 1.25)
+                log.warning('%s %s -> %s; retry %d/%d in %.1fs',
+                            method, path, status or 'network-error',
+                            attempt + 1, retries - 1, delay)
+                time.sleep(delay)
+        log.warning('Request failed permanently: %s %s: %s %s',
+                    method, path, status, body)
         return None
 
     def call(self, method, path, payload=None):

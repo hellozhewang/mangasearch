@@ -13,36 +13,50 @@ log = logging.getLogger(__name__)
 
 
 def search_series(client, db, min_rating):
-    payload = {
-        'page': 1,
-        'perpage': 100,
-        'include_rank_metadata': False,
-        'genre': SEARCH['genres'],
-        'list': 'none',  # only series not on any of my lists
-        'filter': 'no_oneshots',
-        'type': SEARCH['types'],
-        'exclude_genre': SEARCH['exclude_genres'],
-        'orderby': 'rating',
-    }
-    results = []
-    total = None
-    while True:
-        response = client.search_page(payload)
-        if not response:
-            break
-        if total is None:
-            total = response['total_hits']
-            log.info('Total hits: %s', total)
-        page_records = [r['record'] for r in response['results'] if 'record' in r]
-        if not page_records:
-            break
-        results.extend(page_records)
-        log.info('Fetched: %d', len(results))
-        lowest = page_records[-1].get('bayesian_rating') or 0
-        if len(results) >= total or lowest < min_rating:
-            break
-        payload['page'] += 1
+    merged = {}
+    for genres in SEARCH['genre_passes']:
+        label = '+'.join(genres) if genres else 'all-genres'
+        payload = {
+            'page': 1,
+            'perpage': 100,
+            'include_rank_metadata': False,
+            'list': 'none',  # only series not on any of my lists
+            'filter': 'no_oneshots',
+            'type': SEARCH['types'],
+            'exclude_genre': SEARCH['exclude_genres'],
+            'orderby': 'rating',
+        }
+        if genres:
+            payload['genre'] = genres
+        count = 0
+        total = None
+        lowest = None
+        while True:
+            response = client.search_page(payload)
+            if not response:
+                log.warning('[%s] search page %d failed, stopping pass',
+                            label, payload['page'])
+                break
+            if total is None:
+                total = response['total_hits']
+                log.info('[%s] total hits: %s', label, total)
+            page_records = [r['record'] for r in response['results'] if 'record' in r]
+            if not page_records:
+                # MU stops serving results well before total_hits (~3900).
+                log.info('[%s] hit MU paging depth wall at %d results '
+                         '(lowest rating %.2f)', label, count, lowest or 0)
+                break
+            for rec in page_records:
+                merged.setdefault(rec['series_id'], rec)
+            count += len(page_records)
+            log.info('[%s] fetched: %d', label, count)
+            lowest = page_records[-1].get('bayesian_rating') or 0
+            if count >= total or lowest < min_rating:
+                break
+            payload['page'] += 1
+        log.info('[%s] pass done: %d results, %d unique so far', label, count, len(merged))
 
+    results = list(merged.values())
     db.kv_put('search_results', results)
     return results
 
@@ -60,29 +74,39 @@ def score_record(record, rating, series):
     score = base
     breakdown = {}
 
-    # Graded high-rating bonus (smoothed; used to be a cliff at 8.00).
+    # How exceptional the rating is: 0..1 along the 8Club ramp.
     lo, hi = cfg['high_rating_ramp_start'], cfg['high_rating_ramp_end']
-    if base > lo:
-        mod = min((base - lo) / (hi - lo), 1.0) * cfg['high_rating_bonus']
-        score += mod
-        breakdown['8Club'] = mod
+    excellence = min(max((base - lo) / (hi - lo), 0.0), 1.0)
 
-    # Trending boost for promising low-vote series.
-    if votes < cfg['hype_votes_threshold']:
+    # Trending: credit low-vote upside, fading smoothly to zero (no cliff)
+    # and capped so it competes with, but can't dominate, proven ratings.
+    fade = max(0.0, 1.0 - votes / cfg['hype_fade_votes'])
+    if fade > 0:
         hype = ((votes * avg_rating + cfg['hype_gravity'] * cfg['global_mean'])
                 / (votes + cfg['hype_gravity']))
-        mod = max(0, hype - base)
+        mod = min(max(0.0, hype - base) * fade, cfg['hype_cap'])
         if mod:
             score += mod
             breakdown['Trending'] = mod
 
-    # Recency penalty on a rolling window instead of a fixed year.
+    # Recency penalty on a rolling window.
     year_limit = datetime.now().year - cfg['recency_window_years']
+    year_penalty = 0.0
     if 0 < year < year_limit:
-        mod = min((year_limit - year) * cfg['year_penalty_per_year'],
-                  cfg['year_penalty_cap'])
-        score -= mod
-        breakdown['Year'] = -mod
+        year_penalty = min((year_limit - year) * cfg['year_penalty_per_year'],
+                           cfg['year_penalty_cap'])
+        score -= year_penalty
+        breakdown['Year'] = -year_penalty
+
+    # 8Club: an exceptional rating buys back part of the age penalty (an old
+    # masterpiece deserves attention), capped so antiques can't own the top,
+    # plus a small flat nudge.
+    forgiven = min(year_penalty * cfg['high_rating_year_forgiveness'],
+                   cfg['high_rating_forgiveness_cap'])
+    club = excellence * (cfg['high_rating_bonus'] + forgiven)
+    if club:
+        score += club
+        breakdown['8Club'] = club
 
     for genre, weight in cfg['genre_weights'].items():
         if genre in genres:
@@ -95,18 +119,12 @@ def score_record(record, rating, series):
 
         for name, bonus in cfg['category_bonuses'].items():
             if name in categories:
-                mod = min(bonus['base'] + bonus['per_vote'] * categories[name],
-                          bonus['cap'])
-                score += mod
-                breakdown[name] = mod
+                score += bonus
+                breakdown[name] = bonus
 
-        couple_votes = [categories[c] for c in ('Married Couple', 'Established Couple')
-                        if c in categories]
-        if couple_votes:
-            mod = min(cfg['couple_base'] + cfg['couple_per_vote'] * sum(couple_votes),
-                      cfg['couple_cap'])
-            score += mod
-            breakdown['Couple'] = mod
+        if 'Married Couple' in categories or 'Established Couple' in categories:
+            score += cfg['couple_bonus']
+            breakdown['Couple'] = cfg['couple_bonus']
 
         status = str(series.get('status') or '')
         completed = bool(series.get('completed')) or (

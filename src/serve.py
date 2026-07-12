@@ -11,6 +11,7 @@ which attaches the MU session token itself.
     GET  /api/lists   -> {"lists": [{"id", "title", "icon", "custom"}, ...]}
     GET  /api/status  -> refresh state: running / last_success / last_error / next_run
     GET  /api/logs    -> {"lines": [...]} tail of logs/mangasearch.log (?lines=N)
+    GET  /api/comments?series=ID -> 25 most recent MU user comments (cached 1-2d)
     POST /api/list    <- {"series_id": int, "list_id": int}
 
 Usage: python3 serve.py [port]        (default 8000; started via serve.sh)
@@ -18,6 +19,7 @@ Usage: python3 serve.py [port]        (default 8000; started via serve.sh)
 
 import json
 import logging
+import random
 import sys
 import threading
 import time
@@ -30,8 +32,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import log as logsetup
 from api import MangaUpdatesClient, load_credentials
-from config import DB_PATH, LOG_DIR, PROJECT_ROOT, REFRESH_INTERVAL_SECS
+from config import DB_PATH, LOG_DIR, PROJECT_ROOT, REFRESH_INTERVAL_SECS, TTL
 from db import Database
+from logic import clean_description
 from main import refresh
 
 log = logging.getLogger(__name__)
@@ -75,7 +78,45 @@ class Handler(SimpleHTTPRequestHandler):
             return self.api_status()
         if self.path.startswith('/api/logs'):
             return self.api_logs()
+        if self.path.startswith('/api/comments'):
+            return self.api_comments()
         return super().do_GET()
+
+    def api_comments(self):
+        query = parse_qs(urlparse(self.path).query)
+        try:
+            series_id = int(query['series'][0])
+        except (KeyError, ValueError):
+            return self._json(400, {'error': 'expected ?series=<id>'})
+        db = Database(DB_PATH)
+        comments = db.get_many('comments', [series_id]).get(series_id)
+        if comments is None:
+            with _mu_lock:
+                status, body = mu_client().call(
+                    'POST', f'/series/{series_id}/comments/search',
+                    {'method': 'time_added', 'page': 1, 'perpage': 25})
+            if status != 200:
+                # MU is down or grumpy: expired comments beat an empty section.
+                stale = db.get_many('comments', [series_id],
+                                    include_expired=True).get(series_id)
+                if stale is not None:
+                    return self._json(200, {'comments': stale})
+                return self._json(502, {'error': body.get('reason', f'HTTP {status}')})
+            comments = []
+            for result in body.get('results') or []:
+                rec = result.get('record') or {}
+                meta = result.get('metadata') or {}
+                comments.append({
+                    'author': (rec.get('author') or {}).get('name') or 'anonymous',
+                    'content': clean_description(rec.get('content')),
+                    'useful': rec.get('useful') or 0,
+                    'rating': meta.get('author_series_rating'),
+                    'time': (rec.get('time_added') or {}).get('as_string') or '',
+                })
+            db.put('comments', series_id, comments,
+                   time.time() + random.randint(*TTL['comments']))
+            db.commit()
+        self._json(200, {'comments': comments})
 
     def api_logs(self):
         query = parse_qs(urlparse(self.path).query)

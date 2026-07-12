@@ -33,7 +33,8 @@ export default function App() {
   const [lists, setLists] = useState<MuList[] | null>(null)
 
   const [query, setQuery] = useState('')
-  const [genres, setGenres] = useState<string[]>([])
+  // The backend searches all genres; Romance is just the default lens.
+  const [genres, setGenres] = useState<string[]>(['Romance'])
   const [status, setStatus] = useState<StatusFilter>('all')
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'rank', dir: 1 })
   const [added, setAdded] = useState<Record<number, string>>({})
