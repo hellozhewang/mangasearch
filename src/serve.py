@@ -83,6 +83,13 @@ class Handler(SimpleHTTPRequestHandler):
         return super().do_GET()
 
     def api_comments(self):
+        try:
+            self._api_comments()
+        except Exception:
+            log.exception('comments handler failed (%s)', self.path)
+            self._json(500, {'error': 'internal error, see logs'})
+
+    def _api_comments(self):
         query = parse_qs(urlparse(self.path).query)
         try:
             series_id = int(query['series'][0])
@@ -96,6 +103,8 @@ class Handler(SimpleHTTPRequestHandler):
                     'POST', f'/series/{series_id}/comments/search',
                     {'method': 'time_added', 'page': 1, 'perpage': 25})
             if status != 200:
+                log.warning('MU comments fetch failed for %s: %s %s',
+                            series_id, status, body)
                 # MU is down or grumpy: expired comments beat an empty section.
                 stale = db.get_many('comments', [series_id],
                                     include_expired=True).get(series_id)
@@ -215,7 +224,9 @@ def refresher():
     (so a server restart doesn't trigger a redundant refresh)."""
     while True:
         db = Database(DB_PATH)
-        age = db.kv_age('search_results')
+        # Anchor on the last PUBLISH, not the last search: an interrupted run
+        # has fresh search results but no publish, and must resume promptly.
+        age = db.kv_age('scored_records')
         db.conn.close()
         wait = 0.0
         if age is not None and age < REFRESH_INTERVAL_SECS:

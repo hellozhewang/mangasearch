@@ -49,7 +49,7 @@ export default memo(function SeriesRow(props: Props) {
               src={r.image}
               alt=""
               loading="lazy"
-              sx={{ width: 48, height: 68, objectFit: 'cover', borderRadius: 1, display: 'block' }}
+              sx={{ width: 100, height: 142, objectFit: 'cover', borderRadius: 1, display: 'block' }}
             />
           )}
         </TableCell>

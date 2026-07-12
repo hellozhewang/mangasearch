@@ -21,6 +21,9 @@ class Database:
         path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(str(path))
         self.conn.execute('PRAGMA journal_mode=WAL')
+        # Wait out other writers (e.g. the refresh thread) instead of raising
+        # "database is locked" immediately.
+        self.conn.execute('PRAGMA busy_timeout=15000')
         self.conn.execute('''
             CREATE TABLE IF NOT EXISTS entities (
                 kind       TEXT NOT NULL,

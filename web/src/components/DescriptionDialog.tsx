@@ -38,15 +38,25 @@ export default function DescriptionDialog({ record: r, onClose }: Props) {
   const seriesId = r?.id
   const [comments, setComments] = useState<Comment[] | null>(null)
   const [commentsAvailable, setCommentsAvailable] = useState(true)
+  const [commentsError, setCommentsError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!seriesId) return
     setComments(null)
+    setCommentsError(null)
     setCommentsAvailable(true)
     fetch(`/api/comments?series=${seriesId}`)
-      .then((res) => (res.ok ? res.json() : Promise.reject()))
-      .then((j: { comments: Comment[] }) => setComments(j.comments))
-      .catch(() => setCommentsAvailable(false))
+      .then((res) => {
+        if (res.ok) return res.json().then((j: { comments: Comment[] }) => setComments(j.comments))
+        // Backend reachable but errored: say so instead of hiding the section.
+        return res
+          .json()
+          .catch(() => ({}))
+          .then((j: { error?: string }) =>
+            setCommentsError(j.error ?? `HTTP ${res.status}`),
+          )
+      })
+      .catch(() => setCommentsAvailable(false)) // no backend at all
   }, [seriesId])
 
   return (
@@ -58,9 +68,14 @@ export default function DescriptionDialog({ record: r, onClose }: Props) {
               {r.image && (
                 <Box
                   component="img"
-                  src={r.image}
+                  // Try the full-resolution cover; fall back to the thumb if
+                  // MU doesn't have one at that path.
+                  src={r.image.replace('/image/thumb/', '/image/')}
+                  onError={(e) => {
+                    if (e.currentTarget.src !== r.image) e.currentTarget.src = r.image
+                  }}
                   alt=""
-                  sx={{ width: 44, height: 62, objectFit: 'cover', borderRadius: 1 }}
+                  sx={{ width: 140, height: 200, objectFit: 'cover', borderRadius: 1.5, flexShrink: 0 }}
                 />
               )}
               <Box>
@@ -94,7 +109,12 @@ export default function DescriptionDialog({ record: r, onClose }: Props) {
                 <Typography variant="subtitle2" sx={{ mb: 1.5 }}>
                   Recent comments{comments && comments.length > 0 && ` (${comments.length})`}
                 </Typography>
-                {!comments && (
+                {commentsError && (
+                  <Typography variant="body2" color="warning.main">
+                    Couldn't load comments ({commentsError}) — try reopening.
+                  </Typography>
+                )}
+                {!comments && !commentsError && (
                   <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
                     <CircularProgress size={22} />
                   </Box>

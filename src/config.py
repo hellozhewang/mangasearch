@@ -8,10 +8,14 @@ PROJECT_ROOT = SRC_DIR.parent
 DB_PATH = PROJECT_ROOT / 'data' / 'mangasearch.db'
 LOG_DIR = PROJECT_ROOT / 'logs'
 
-SEARCH_RESULTS_TTL_SECS = 300
+# Reuse stored search results this long — lets an interrupted refresh resume
+# its entity backfill without re-paging ~140 search pages.
+SEARCH_RESULTS_TTL_SECS = 1800
 REQUEST_DELAY_SECS = 0.75
 REFRESH_INTERVAL_SECS = 3600
-TOP_N = 300
+# Published list = the top N of each slice: one slice per dedicated genre
+# pass, plus one for everything else. Keeps every genre view equally deep.
+GENRE_TOP_N = 150
 # Slightly below the old 6.8: with taste weights up to ~+0.5, a well-fitting
 # 6.6 can now legitimately compete for the bottom of the top-150.
 MIN_RATING = 6.6
@@ -25,10 +29,11 @@ TTL = {
 }
 
 SEARCH = {
-    # MU silently caps search paging at ~3900 results per query, so one
-    # all-genre pass only reaches down to ~7.0. Each pass gets its own window:
-    # [] = all genres (breadth), ['Romance'] = deep Romance coverage (the
-    # frontend's default filter). Results are merged and deduped.
+    # MU caps each query at 10k results, so one all-genre pass only reaches
+    # down to ~7.0. Each pass gets its own 10k window: [] = breadth (all
+    # genres EXCEPT those with a dedicated pass, so no window slots are
+    # wasted on overlap), ['Romance'] = deep Romance coverage (the frontend's
+    # default filter). Results are merged and deduped.
     'genre_passes': [[], ['Romance']],
     'exclude_genres': ['Shotacon', 'Shoujo Ai', 'Shounen Ai', 'Yaoi', 'Yuri', 'Hentai'],
     'types': ['Manga', 'Manhwa', 'Manhua'],
@@ -68,13 +73,13 @@ SCORING = {
         'Harem': -0.30,
     },
 
-    # Flat category bonuses (the old base+per-vote formulas hit their caps at
-    # a single vote, so they were binary flags in disguise).
-    'category_bonuses': {
-        'Fast Romance': 0.10,
-        'Beautiful Artwork': 0.06,
-    },
-    'couple_bonus': 0.12,
+    # Flat category bonuses. Each rule pays once if the series has ANY of the
+    # listed categories (so e.g. Married + Established Couple doesn't double).
+    'category_bonuses': [
+        {'label': 'Fast Romance', 'any_of': ['Fast Romance'], 'bonus': 0.10},
+        {'label': 'Beautiful Artwork', 'any_of': ['Beautiful Artwork'], 'bonus': 0.06},
+        {'label': 'Couple', 'any_of': ['Married Couple', 'Established Couple'], 'bonus': 0.12},
+    ],
 
     'completed_bonus': 0.25,
 }

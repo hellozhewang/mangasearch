@@ -20,14 +20,14 @@ import logging
 
 import log as logsetup
 from api import MangaUpdatesClient, load_credentials
-from config import (DB_PATH, MIN_RATING, SEARCH_RESULTS_TTL_SECS, TOP_N)
+from config import DB_PATH, GENRE_TOP_N, MIN_RATING, SEARCH_RESULTS_TTL_SECS
 from db import Database
 from logic import build_records, search_series
 
 log = logging.getLogger(__name__)
 
 
-def refresh(offline=False, top=TOP_N, min_rating=MIN_RATING):
+def refresh(offline=False, top=GENRE_TOP_N, min_rating=MIN_RATING):
     """Run the full pipeline: search -> enrich -> score -> render."""
     db = Database(DB_PATH)
 
@@ -54,8 +54,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--offline', action='store_true',
                         help='render from the local DB only; no network, no login')
-    parser.add_argument('--top', type=int, default=TOP_N,
-                        help=f'number of series to render (default: {TOP_N})')
+    parser.add_argument('--top', type=int, default=GENRE_TOP_N,
+                        help=f'series per genre slice (default: {GENRE_TOP_N})')
     parser.add_argument('--min-rating', type=float, default=MIN_RATING,
                         help=f'stop paging once ratings drop below this (default: {MIN_RATING})')
     args = parser.parse_args()

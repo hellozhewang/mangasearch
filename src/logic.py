@@ -14,8 +14,14 @@ log = logging.getLogger(__name__)
 
 def search_series(client, db, min_rating):
     merged = {}
+    # Genres with their own dedicated pass are excluded from the breadth pass
+    # so its 10k result window isn't wasted on titles another pass covers.
+    dedicated = {g for genres in SEARCH['genre_passes'] for g in genres}
     for genres in SEARCH['genre_passes']:
         label = '+'.join(genres) if genres else 'all-genres'
+        exclude = list(SEARCH['exclude_genres'])
+        if not genres:
+            exclude.extend(sorted(dedicated))
         payload = {
             'page': 1,
             'perpage': 100,
@@ -23,7 +29,7 @@ def search_series(client, db, min_rating):
             'list': 'none',  # only series not on any of my lists
             'filter': 'no_oneshots',
             'type': SEARCH['types'],
-            'exclude_genre': SEARCH['exclude_genres'],
+            'exclude_genre': exclude,
             'orderby': 'rating',
         }
         if genres:
@@ -69,7 +75,8 @@ def score_record(record, rating, series):
     avg_rating = (rating or {}).get('average_rating') or 0
     year_str = str(record.get('year') or '')[:4]
     year = int(year_str) if year_str.isdigit() else 0
-    genres = {g['genre'] for g in record.get('genres', [])}
+    # `or []`: MU can return explicit nulls for these fields.
+    genres = {g['genre'] for g in record.get('genres') or []}
 
     score = base
     breakdown = {}
@@ -115,16 +122,12 @@ def score_record(record, rating, series):
 
     completed = False
     if series:
-        categories = {c['category']: c['votes_plus'] for c in series.get('categories', [])}
+        categories = {c['category']: c['votes_plus'] for c in series.get('categories') or []}
 
-        for name, bonus in cfg['category_bonuses'].items():
-            if name in categories:
-                score += bonus
-                breakdown[name] = bonus
-
-        if 'Married Couple' in categories or 'Established Couple' in categories:
-            score += cfg['couple_bonus']
-            breakdown['Couple'] = cfg['couple_bonus']
+        for rule in cfg['category_bonuses']:
+            if any(c in categories for c in rule['any_of']):
+                score += rule['bonus']
+                breakdown[rule['label']] = rule['bonus']
 
         status = str(series.get('status') or '')
         completed = bool(series.get('completed')) or (
@@ -171,9 +174,11 @@ def build_records(client, db, results, offline, top_n):
                     # instead of the whole corpus expiring at once.
                     expires_at = time.time() + random.randint(*TTL[kind])
                     db.put(kind, id_, resp, expires_at)
+                    # Commit per write: batching held SQLite's write lock for
+                    # ~50s stretches and starved the API handlers.
+                    db.commit()
                 fetched += 1
                 if fetched % 50 == 0:
-                    db.commit()
                     log.info('Fetched: %d/%d', fetched, to_fetch)
         db.commit()
 
@@ -192,7 +197,7 @@ def build_records(client, db, results, offline, top_n):
             'url': record.get('url') or '',
             'image': ((record.get('image') or {}).get('url') or {}).get('thumb') or '',
             'year': str(record.get('year') or ''),
-            'genres': sorted({g['genre'] for g in record.get('genres', [])}),
+            'genres': sorted({g['genre'] for g in record.get('genres') or []}),
             'status': ' · '.join(s.strip() for s in status.splitlines() if s.strip()),
             'description': clean_description((series or {}).get('description')),
             'completed': completed,
@@ -203,8 +208,25 @@ def build_records(client, db, results, offline, top_n):
             'breakdown': {k: round(v, 3) for k, v in breakdown.items()},
         })
 
-    records.sort(key=lambda r: (r['score'], r['average'], r['bayesian']), reverse=True)
-    records = records[:top_n]
-    for rank, r in enumerate(records, 1):
+    sort_key = lambda r: (r['score'], r['average'], r['bayesian'])
+    records.sort(key=sort_key, reverse=True)
+
+    # Take the top N of each slice: one per dedicated genre, plus a breadth
+    # slice for everything not covered by a dedicated genre.
+    dedicated = {g for genres in SEARCH['genre_passes'] for g in genres}
+    slices = [lambda r, g=g: g in r['genres'] for g in sorted(dedicated)]
+    slices.append(lambda r: not dedicated & set(r['genres']))
+    selected, chosen = [], set()
+    for belongs in slices:
+        count = 0
+        for r in records:
+            if count >= top_n:
+                break
+            if r['id'] not in chosen and belongs(r):
+                chosen.add(r['id'])
+                selected.append(r)
+                count += 1
+    selected.sort(key=sort_key, reverse=True)
+    for rank, r in enumerate(selected, 1):
         r['rank'] = rank
-    return records
+    return selected

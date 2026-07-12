@@ -26,7 +26,7 @@ interface Props {
 
 const COLUMNS: { key?: SortKey; label: string; align?: 'right'; width: number }[] = [
   { key: 'rank', label: '#', width: 44 },
-  { label: '', width: 64 }, // cover
+  { label: '', width: 116 }, // cover
   { key: 'title', label: 'Title', width: 240 },
   { key: 'year', label: 'Year', width: 64 },
   { label: 'Genres', width: 220 },
