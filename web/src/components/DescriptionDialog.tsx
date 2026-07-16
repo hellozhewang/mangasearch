@@ -28,6 +28,12 @@ interface Props {
   onClose: () => void
 }
 
+/** 1 -> red, 10 -> green, smooth hue sweep in between. */
+function ratingHue(rating: number): number {
+  const t = Math.max(0, Math.min(1, (rating - 1) / 9))
+  return t * 120
+}
+
 /** Description shown as an overlay (full-screen sheet on phones) so opening it
  *  never changes the table's geometry — inline expansion forced the browser to
  *  re-rasterize everything below the row, freezing scroll on large tables. */
@@ -131,7 +137,19 @@ export default function DescriptionDialog({ record: r, onClose }: Props) {
                         {c.author}
                       </Typography>
                       {c.rating != null && (
-                        <Chip label={`★ ${c.rating}`} size="small" color="primary" variant="outlined" sx={{ height: 18, fontSize: 11 }} />
+                        <Chip
+                          label={`★ ${c.rating}`}
+                          size="small"
+                          variant="outlined"
+                          sx={{
+                            height: 18,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            color: `hsl(${ratingHue(c.rating)}, 70%, 40%)`,
+                            borderColor: `hsl(${ratingHue(c.rating)}, 70%, 45%)`,
+                            bgcolor: `hsla(${ratingHue(c.rating)}, 70%, 50%, 0.12)`,
+                          }}
+                        />
                       )}
                       {c.useful > 0 && (
                         <Chip label={`+${c.useful} useful`} size="small" variant="outlined" sx={{ height: 18, fontSize: 11 }} />

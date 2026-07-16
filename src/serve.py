@@ -12,7 +12,8 @@ which attaches the MU session token itself.
     GET  /api/status  -> refresh state: running / last_success / last_error / next_run
     GET  /api/logs    -> {"lines": [...]} tail of logs/mangasearch.log (?lines=N)
     GET  /api/comments?series=ID -> 25 most recent MU user comments (cached 1-2d)
-    POST /api/list    <- {"series_id": int, "list_id": int}
+    GET  /api/listed  -> {"listed": {series_id: list_id}} my list memberships
+    POST /api/list    <- {"series_id": int, "list_id": int}  add or move
 
 Usage: python3 serve.py [port]        (default 8000; started via serve.sh)
 """
@@ -76,6 +77,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self.api_lists()
         if self.path == '/api/status':
             return self.api_status()
+        if self.path == '/api/listed':
+            return self.api_listed()
         if self.path.startswith('/api/logs'):
             return self.api_logs()
         if self.path.startswith('/api/comments'):
@@ -140,6 +143,10 @@ class Handler(SimpleHTTPRequestHandler):
             lines = []
         self._json(200, {'lines': lines})
 
+    def api_listed(self):
+        db = Database(DB_PATH)
+        self._json(200, {'listed': db.get_listed()})
+
     def api_status(self):
         with _refresh_lock:
             state = dict(_refresh_state)
@@ -201,19 +208,43 @@ class Handler(SimpleHTTPRequestHandler):
         except (ValueError, KeyError):
             return self._json(400, {'error': 'expected {"series_id": int, "list_id": int}'})
 
+        db = Database(DB_PATH)
+        current = db.get_listed().get(series_id)
+        if current == list_id:
+            return self._json(200, {'ok': True, 'list_id': list_id})
+
+        payload = [{'series': {'id': series_id}, 'list_id': list_id}]
+        # A series already on some list must be MOVED, not re-added.
+        path = '/lists/series/update' if current is not None else '/lists/series'
         with _mu_lock:
-            status, body = mu_client().call(
-                'POST', '/lists/series',
-                [{'series': {'id': series_id}, 'list_id': list_id}])
+            status, body = mu_client().call('POST', path, payload)
+        if (status != 200 and path == '/lists/series'
+                and 'already on one of your lists' in self._mu_detail(body, status)):
+            # Local map was stale (e.g. listed on the MU site minutes ago):
+            # it IS on a list, so retry as a move.
+            path = '/lists/series/update'
+            with _mu_lock:
+                status, body = mu_client().call('POST', path, payload)
         if status == 200:
-            log.info('Added series %s to list %s', series_id, list_id)
-            return self._json(200, {'ok': True})
-        log.warning('Add series %s to list %s failed: %s %s',
+            db.upsert_listed(series_id, list_id)
+            moved = path.endswith('update')
+            log.info('%s series %s -> list %s',
+                     'Moved' if moved else 'Added', series_id, list_id)
+            return self._json(200, {'ok': True, 'list_id': list_id, 'moved': moved})
+        log.warning('Add/move series %s -> list %s failed: %s %s',
                     series_id, list_id, status, body)
         if status == 412:
             return self._json(429, {'error': 'MangaUpdates allows one list update '
                                              'every 5 seconds — try again in a moment.'})
-        self._json(502, {'error': body.get('reason', f'HTTP {status}')})
+        self._json(502, {'error': self._mu_detail(body, status)})
+
+    @staticmethod
+    def _mu_detail(body, status):
+        detail = body.get('reason', f'HTTP {status}')
+        errors = (body.get('context') or {}).get('errors') or []
+        if errors and errors[0].get('error'):
+            detail = errors[0]['error']
+        return detail
 
     def log_message(self, fmt, *args):
         log.info('%s %s', self.address_string(), fmt % args)

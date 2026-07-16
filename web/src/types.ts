@@ -28,7 +28,7 @@ export interface MuList {
   custom: boolean
 }
 
-export type SortKey = 'rank' | 'title' | 'year' | 'votes' | 'bayesian' | 'average' | 'score'
+export type SortKey = 'rank' | 'title' | 'year' | 'bayesian' | 'score'
 export type StatusFilter = 'all' | 'completed' | 'ongoing'
 
 export interface RefreshStatus {

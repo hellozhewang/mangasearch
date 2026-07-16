@@ -16,7 +16,7 @@ interface Props {
   selectedGenres: string[]
   onToggleGenre: (g: string) => void
   lists: MuList[] | null
-  addedLabel?: string
+  listedListId?: number
   onAdd: (record: SeriesRecord, list: MuList) => void
   onShowDescription: (record: SeriesRecord) => void
 }
@@ -39,9 +39,8 @@ export default memo(function SeriesRow(props: Props) {
       <TableRow
         hover
         onClick={() => props.onShowDescription(r)}
-        sx={{ cursor: 'pointer', ...(props.addedLabel && { opacity: 0.55 }) }}
+        sx={{ cursor: 'pointer', ...(props.listedListId != null && { opacity: 0.55 }) }}
       >
-        <TableCell sx={{ color: 'text.secondary' }}>{r.rank}</TableCell>
         <TableCell sx={{ py: 0.75 }}>
           {r.image && (
             <Box
@@ -108,9 +107,17 @@ export default memo(function SeriesRow(props: Props) {
             {r.status}
           </Typography>
         </TableCell>
-        <TableCell align="right">{r.votes}</TableCell>
-        <TableCell align="right">{r.bayesian.toFixed(2)}</TableCell>
-        <TableCell align="right">{r.average ? r.average.toFixed(2) : '—'}</TableCell>
+        <TableCell align="right">
+          <Typography variant="body2" fontWeight={600}>
+            {r.bayesian.toFixed(2)}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" component="div" sx={{ whiteSpace: 'nowrap' }}>
+            avg {r.average ? r.average.toFixed(2) : '—'}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" component="div" sx={{ whiteSpace: 'nowrap' }}>
+            {r.votes} votes
+          </Typography>
+        </TableCell>
         <TableCell align="right">
           <Typography fontWeight={700} color="primary">
             {r.score.toFixed(2)}
@@ -132,33 +139,32 @@ export default memo(function SeriesRow(props: Props) {
         </TableCell>
         {props.lists && (
           <TableCell onClick={(e) => e.stopPropagation()} sx={{ minWidth: 140, opacity: 1 }}>
-            {props.addedLabel ? (
-              <Chip size="small" color="success" label={`✓ ${props.addedLabel}`} />
-            ) : (
-              <Select
-                size="small"
-                value=""
-                displayEmpty
-                disabled={pending}
-                fullWidth
-                onChange={async (e) => {
-                  const list = props.lists!.find((l) => l.id === Number(e.target.value))
-                  if (!list) return
-                  setPending(true)
-                  await props.onAdd(r, list)
-                  setPending(false)
-                }}
-              >
-                <MenuItem value="" disabled>
-                  Select…
+            {/* Shows the list this series is on; changing it moves the series
+                on MangaUpdates. Listed rows dim until the hourly refresh
+                sweeps them out of the candidate pool. */}
+            <Select
+              size="small"
+              value={props.listedListId ?? ''}
+              displayEmpty
+              disabled={pending}
+              fullWidth
+              onChange={async (e) => {
+                const list = props.lists!.find((l) => l.id === Number(e.target.value))
+                if (!list) return
+                setPending(true)
+                await props.onAdd(r, list)
+                setPending(false)
+              }}
+            >
+              <MenuItem value="" disabled>
+                Select…
+              </MenuItem>
+              {props.lists.map((l) => (
+                <MenuItem key={l.id} value={l.id}>
+                  {l.icon ? `${l.icon} ${l.title}` : l.title}
                 </MenuItem>
-                {props.lists.map((l) => (
-                  <MenuItem key={l.id} value={l.id}>
-                    {l.icon ? `${l.icon} ${l.title}` : l.title}
-                  </MenuItem>
-                ))}
-              </Select>
-            )}
+              ))}
+            </Select>
           </TableCell>
         )}
       </TableRow>

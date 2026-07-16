@@ -37,7 +37,9 @@ export default function App() {
   const [genres, setGenres] = useState<string[]>(['Romance'])
   const [status, setStatus] = useState<StatusFilter>('all')
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'rank', dir: 1 })
-  const [added, setAdded] = useState<Record<number, string>>({})
+  // series_id -> list_id for everything on my MU lists (synced hourly
+  // server-side, updated locally on every add/move).
+  const [listed, setListed] = useState<Record<number, number>>({})
   const [toast, setToast] = useState<string | null>(null)
   const [descRecord, setDescRecord] = useState<SeriesRecord | null>(null)
   const [logsOpen, setLogsOpen] = useState(false)
@@ -51,6 +53,17 @@ export default function App() {
       .then((j: DataPayload) => setPayload(j))
       .catch((e: Error) => setLoadError(`Could not load records (${e.message})`))
   }, [])
+
+  const fetchListed = useCallback(() => {
+    fetch('/api/listed')
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((j: { listed: Record<number, number> }) => setListed(j.listed))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    fetchListed()
+  }, [fetchListed])
 
   useEffect(() => {
     // No backend (e.g. page opened as a bare file): lists stay null and the
@@ -84,7 +97,8 @@ export default function App() {
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((j: DataPayload) => setPayload(j))
       .catch(() => {})
-  }, [lastSuccess])
+    fetchListed()
+  }, [lastSuccess, fetchListed])
 
   const records = payload?.records ?? []
 
@@ -148,8 +162,7 @@ export default function App() {
       setToast(`Could not add "${record.title}" to ${list.title}: ${body.error ?? resp.status}`)
       return
     }
-    const label = list.icon ? `${list.icon} ${list.title}` : list.title
-    setAdded((cur) => ({ ...cur, [record.id]: label }))
+    setListed((cur) => ({ ...cur, [record.id]: body.list_id ?? list.id }))
   }, [])
 
   return (
@@ -205,7 +218,7 @@ export default function App() {
             selectedGenres={genres}
             onToggleGenre={toggleGenre}
             lists={lists}
-            added={added}
+            listed={listed}
             onAdd={addToList}
             onShowDescription={showDescription}
           />

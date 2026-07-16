@@ -39,6 +39,12 @@ class Database:
                 updated_at REAL NOT NULL
             )''')
         self.conn.execute('''
+            CREATE TABLE IF NOT EXISTS listed (
+                series_id  INTEGER PRIMARY KEY,
+                list_id    INTEGER NOT NULL,
+                updated_at REAL NOT NULL
+            )''')
+        self.conn.execute('''
             CREATE TABLE IF NOT EXISTS lists (
                 list_id    INTEGER PRIMARY KEY,
                 title      TEXT NOT NULL,
@@ -94,6 +100,25 @@ class Database:
 
     def entity_count(self):
         return self.conn.execute('SELECT COUNT(*) FROM entities').fetchone()[0]
+
+    def save_listed(self, pairs):
+        """Replace the map of which series sit on which of my lists."""
+        now = time.time()
+        self.conn.execute('DELETE FROM listed')
+        self.conn.executemany(
+            'INSERT OR REPLACE INTO listed (series_id, list_id, updated_at) '
+            'VALUES (?, ?, ?)', [(s_id, l_id, now) for s_id, l_id in pairs])
+        self.conn.commit()
+
+    def upsert_listed(self, series_id, list_id):
+        self.conn.execute(
+            'INSERT OR REPLACE INTO listed (series_id, list_id, updated_at) '
+            'VALUES (?, ?, ?)', (series_id, list_id, time.time()))
+        self.conn.commit()
+
+    def get_listed(self):
+        """{series_id: list_id} for every series on any of my lists."""
+        return dict(self.conn.execute('SELECT series_id, list_id FROM listed'))
 
     def save_lists(self, lists):
         """Replace the user-list map (list_id -> title/icon)."""

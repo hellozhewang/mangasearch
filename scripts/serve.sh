@@ -4,6 +4,8 @@
 #   sh serve.sh start [port]   start now + auto-start at login (installs launchd agent)
 #   sh serve.sh stop           stop until next login / `start`
 #   sh serve.sh status         is it loaded? is it answering?
+#   sh serve.sh build          rebuild the frontend (web/ -> docs/), no restart
+#   sh serve.sh deploy [port]  rebuild the frontend, then restart the server
 #   sh serve.sh uninstall      stop and remove the launchd agent
 #   sh serve.sh run [port]     run in the foreground (what launchd executes)
 #
@@ -50,16 +52,40 @@ install_agent() {
 EOF
 }
 
+build_frontend() {
+    echo "Building frontend (web/ -> docs/)..."
+    (cd "$ROOT/web" && npm run build) || exit 1
+}
+
+start_agent() {
+    [ -f "$PLIST" ] || install_agent
+    launchctl bootout "$TARGET" 2>/dev/null
+    # bootout is asynchronous; retry bootstrap until launchd lets go.
+    for attempt in 1 2 3 4; do
+        sleep 1
+        launchctl bootstrap "$DOMAIN" "$PLIST" 2>/dev/null && break
+        if [ "$attempt" = 4 ]; then
+            echo "bootstrap failed after 4 attempts" >&2
+            exit 1
+        fi
+    done
+    sleep 1
+    sh "$0" status "$PORT"
+}
+
 case "${1:-status}" in
     run)
         exec python3 -u "$ROOT/src/serve.py" "$PORT"
         ;;
     start)
-        [ -f "$PLIST" ] || install_agent
-        launchctl bootout "$TARGET" 2>/dev/null
-        launchctl bootstrap "$DOMAIN" "$PLIST" || exit 1
-        sleep 1
-        sh "$0" status "$PORT"
+        start_agent
+        ;;
+    build)
+        build_frontend
+        ;;
+    deploy)
+        build_frontend
+        start_agent
         ;;
     stop)
         if launchctl bootout "$TARGET" 2>/dev/null; then
@@ -89,7 +115,7 @@ case "${1:-status}" in
         echo "Agent removed."
         ;;
     *)
-        echo "Usage: sh serve.sh {start|stop|status|uninstall|run} [port]" >&2
+        echo "Usage: sh serve.sh {start|stop|status|build|deploy|uninstall|run} [port]" >&2
         exit 1
         ;;
 esac

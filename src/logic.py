@@ -67,6 +67,37 @@ def search_series(client, db, min_rating):
     return results
 
 
+def sync_listed(client, db):
+    """Pull which series are on which of my MU lists into the listed table."""
+    status, lists = client.call('GET', '/lists')
+    if status != 200:
+        log.warning('listed sync: GET /lists failed: %s', status)
+        return
+    pairs = []
+    for lst in lists:
+        list_id = lst['list_id']
+        page = 1
+        while True:
+            status, body = client.call('POST', f'/lists/{list_id}/search',
+                                       {'page': page, 'perpage': 100})
+            if status != 200:
+                log.warning('listed sync: list %s page %d failed: %s',
+                            list_id, page, status)
+                break
+            results = body.get('results') or []
+            for item in results:
+                rec = item.get('record') or {}
+                series_id = (rec.get('series') or {}).get('id')
+                if series_id:
+                    pairs.append((series_id, rec.get('list_id', list_id)))
+            total = body.get('total_hits') or 0
+            if not results or page * 100 >= total:
+                break
+            page += 1
+    db.save_listed(pairs)
+    log.info('Synced %d listed series across %d lists', len(pairs), len(lists))
+
+
 def score_record(record, rating, series):
     """Return (score, breakdown, avg_rating, completed) for one series."""
     cfg = SCORING

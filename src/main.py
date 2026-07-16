@@ -22,7 +22,7 @@ import log as logsetup
 from api import MangaUpdatesClient, load_credentials
 from config import DB_PATH, GENRE_TOP_N, MIN_RATING, SEARCH_RESULTS_TTL_SECS
 from db import Database
-from logic import build_records, search_series
+from logic import build_records, search_series, sync_listed
 
 log = logging.getLogger(__name__)
 
@@ -48,6 +48,8 @@ def refresh(offline=False, top=GENRE_TOP_N, min_rating=MIN_RATING):
     records = build_records(client, db, results, offline, top)
     log.info('Publishing %d scored records to the DB', len(records))
     db.kv_put('scored_records', records)
+    if client is not None:
+        sync_listed(client, db)
 
 
 def main():

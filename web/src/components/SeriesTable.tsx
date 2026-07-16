@@ -19,21 +19,18 @@ interface Props {
   selectedGenres: string[]
   onToggleGenre: (g: string) => void
   lists: MuList[] | null
-  added: Record<number, string>
+  listed: Record<number, number>
   onAdd: (record: SeriesRecord, list: MuList) => void
   onShowDescription: (record: SeriesRecord) => void
 }
 
 const COLUMNS: { key?: SortKey; label: string; align?: 'right'; width: number }[] = [
-  { key: 'rank', label: '#', width: 44 },
   { label: '', width: 116 }, // cover
   { key: 'title', label: 'Title', width: 240 },
   { key: 'year', label: 'Year', width: 64 },
   { label: 'Genres', width: 220 },
   { label: 'Status', width: 150 },
-  { key: 'votes', label: 'Votes', align: 'right', width: 70 },
-  { key: 'bayesian', label: 'Bayesian', align: 'right', width: 84 },
-  { key: 'average', label: 'Avg', align: 'right', width: 64 },
+  { key: 'bayesian', label: 'Rating', align: 'right', width: 110 },
   { key: 'score', label: 'Score', align: 'right', width: 80 },
   { label: 'Why', width: 210 },
 ]
@@ -67,7 +64,7 @@ export default memo(function SeriesTable(props: Props) {
                 )}
               </TableCell>
             ))}
-            {props.lists && <TableCell>Add to</TableCell>}
+            {props.lists && <TableCell>List</TableCell>}
           </TableRow>
         </TableHead>
         <TableBody>
@@ -78,7 +75,7 @@ export default memo(function SeriesTable(props: Props) {
               selectedGenres={props.selectedGenres}
               onToggleGenre={props.onToggleGenre}
               lists={props.lists}
-              addedLabel={props.added[r.id]}
+              listedListId={props.listed[r.id]}
               onAdd={props.onAdd}
               onShowDescription={props.onShowDescription}
             />
