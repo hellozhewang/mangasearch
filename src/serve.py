@@ -14,6 +14,7 @@ which attaches the MU session token itself.
     GET  /api/comments?series=ID -> 25 most recent MU user comments (cached 1-2d)
     GET  /api/listed  -> {"listed": {series_id: list_id}} my list memberships
     POST /api/list    <- {"series_id": int, "list_id": int}  add or move
+    POST /api/client-error <- frontend crash reports, logged as warnings
 
 Usage: python3 serve.py [port]        (default 8000; started via serve.sh)
 """
@@ -172,7 +173,20 @@ class Handler(SimpleHTTPRequestHandler):
     def do_POST(self):
         if self.path == '/api/list':
             return self.api_add_to_list()
+        if self.path == '/api/client-error':
+            return self.api_client_error()
         self.send_error(404)
+
+    def api_client_error(self):
+        try:
+            length = int(self.headers.get('Content-Length') or 0)
+            data = json.loads(self.rfile.read(min(length, 65536)) or b'{}')
+        except ValueError:
+            data = {}
+        log.warning('CLIENT ERROR [%s] %s | %s | %s',
+                    data.get('kind', '?'), data.get('message', '?'),
+                    data.get('url', ''), (data.get('stack') or '')[:2000])
+        self._json(200, {'ok': True})
 
     def _json(self, code, obj):
         body = json.dumps(obj).encode()
